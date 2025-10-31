@@ -1,0 +1,43 @@
+﻿cmake_minimum_required (VERSION 3.8)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Enable Hot Reload for MSVC compilers if supported.
+if (POLICY CMP0141)
+  cmake_policy(SET CMP0141 NEW)
+  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+endif()
+
+project ("tasks")
+
+file(GLOB LIB_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.h")
+file(GLOB LIB_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.cpp")
+
+if(LIB_HEADERS)
+    if(LIB_SOURCES)
+        add_library(Lib ${LIB_SOURCES} ${LIB_HEADERS})
+        target_include_directories(Lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+        set(LIB_EXISTS TRUE)
+    else()
+        add_library(Lib INTERFACE)
+        target_include_directories(Lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+        set(LIB_EXISTS TRUE)
+    endif()
+else()
+    message(WARNING "No library files found in ${CMAKE_CURRENT_SOURCE_DIR}/lib")
+    set(LIB_EXISTS FALSE)
+endif()
+
+
+foreach(PART RANGE 1 19)    
+    foreach(TASK_NUMBER RANGE 1 100)    
+        set(SOURCE_FILE "${PART}/${TASK_NUMBER}.cpp")
+        set(TARGET_NAME "${PART}_${TASK_NUMBER}")
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_FILE}")
+            add_executable(${TARGET_NAME} ${SOURCE_FILE})
+            if(LIB_EXISTS)
+                target_link_libraries(${TARGET_NAME} PRIVATE Lib)
+            endif()
+        endif()
+    endforeach()
+endforeach()
