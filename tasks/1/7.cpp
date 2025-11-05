@@ -1,10 +1,9 @@
-// Вывод идентификаторов пользователя и группы
+// output usedid and groupid
 
+import std;
 #include <unistd.h>
-#include <cstdlib>
-#include <stdio.h>
 
 int main(void) {
-	printf("uid = %d, gid = %d\n", getuid(), getgid());
-	exit(0);
+	std::println("uid = {}, gid = {}", getuid(), getgid());
+	return 0;
 }

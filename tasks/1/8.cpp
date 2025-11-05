@@ -1,12 +1,13 @@
-//Чтение команд со стандартного ввода и их выполнение
+// read commands from stdin and execution them
 
-#include "unistd.h"
+import apue;
+import std;
 #include <sys/wait.h>
-#include "apue.h"
+
 
 void sig_int(int signo) {
-	printf("\nInterrupted\n%% ");
-	fflush(stdout);
+	std::println("\nInterrupted");
+	std::print("% ");
 }
 
 int main() {
@@ -15,14 +16,14 @@ int main() {
 	int status;
 
 	if (signal(SIGINT, sig_int) == SIG_ERR) {
-		throw UnixError("error call signal");
+		err_sys("error call signal");
 	}
 
-	std::cout << "% " << std::flush;
+	std::print("% ");
 
 	while (std::getline(std::cin, line)) {
+		std::print("% ");
 		if (line.empty()) {
-			std::cout << "% " << std::flush;
 			continue;
 		}
 
@@ -36,23 +37,19 @@ int main() {
 		for (size_t i = 0; i < args_storage.size(); ++i) {
 			argv_c[i] = args_storage[i].data();
 		}
-
 		if ((pid = fork()) < 0) {
-			throw UnixError("error call fork");
-		} else if (pid == 0) { // child process
+			err_sys("error call fork");
+		} else if (pid == 0) {
+			// child process
 			execvp(argv_c[0], argv_c.data());
 
-			throw UnixError("cannot execute: " + line);
-			exit(127);
+			err_sys("cannot execute: {}", line);
+			return 127;
 		}
-
 		// parent process
 		if (waitpid(pid, &status, 0) < 0) {
-			throw UnixError("error call waitpid");
+			err_sys("error call waitpid");
 		}
-
-		std::cout << "% " << std::flush;
 	}
-
 	return 0;
 }
