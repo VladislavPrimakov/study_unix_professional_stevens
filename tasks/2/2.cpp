@@ -1,9 +1,6 @@
 // example usage of sysconf() and pathconf() to print system limits
 
-import apue;
-import std;
-#include <unistd.h>
-#include <cerrno>
+#include <apue.h>
 
 void pr_sysconf(const std::string& mesg, int name);
 
@@ -330,10 +327,12 @@ void pr_sysconf(const std::string& mesg, int name) {
 				std::println("(not supported)");
 			else
 				err_ret("sysconf error");
-		} else {
+		}
+		else {
 			std::println("(not limit)");
 		}
-	} else {
+	}
+	else {
 		std::println("{0:<{1}}", val, SIZE_VALUE);
 	}
 }
@@ -348,10 +347,12 @@ void pr_pathconf(const std::string& mesg, const std::string& path, int name) {
 				std::println("(not supported)");
 			else
 				err_ret("pathconf error for path " + path);
-		} else {
+		}
+		else {
 			std::println("(not limit)");
 		}
-	} else {
+	}
+	else {
 		std::println("{0:<{1}}", val, SIZE_VALUE);
 	}
 }

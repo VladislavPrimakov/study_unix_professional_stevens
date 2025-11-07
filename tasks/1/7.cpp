@@ -1,7 +1,6 @@
 // output usedid and groupid
 
-import std;
-#include <unistd.h>
+#include <apue.h>
 
 int main(void) {
 	std::println("uid = {}, gid = {}", getuid(), getgid());

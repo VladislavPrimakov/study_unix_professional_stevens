@@ -1,12 +1,4 @@
-module;
-#include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <climits>
-#include <cerrno>
-#include <cstring>
-module apue;
-
+#include <apue.h>
 
 /**
  @brief clear flags to fd
@@ -68,7 +60,8 @@ std::vector<char> path_alloc() {
 					pathmax = PATH_MAX_GUESS;
 				else
 					err_ret("pathconf error for _PC_PATH_MAX");
-			} else {
+			}
+			else {
 				pathmax++;
 			}
 		}
@@ -83,7 +76,8 @@ std::vector<char> path_alloc() {
 	try {
 		std::vector<char> buffer(size);
 		return buffer;
-	} catch (const std::bad_alloc&) {
+	}
+	catch (const std::bad_alloc&) {
 		throw std::runtime_error("malloc error for pathname");
 	}
 }
@@ -103,7 +97,8 @@ long open_max() {
 		if ((openmax = sysconf(_SC_OPEN_MAX)) < 0) {
 			if (errno == 0) {
 				openmax = OPEN_MAX_GUESS;
-			} else {
+			}
+			else {
 				err_ret("sysconf error for _SC_OPEN_MAX");
 			}
 		}

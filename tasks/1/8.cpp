@@ -1,9 +1,7 @@
 // read commands from stdin and execution them
 
-import apue;
-import std;
-#include <sys/wait.h>
-
+#include <apue.h>
+#include <sstream>
 
 void sig_int(int signo) {
 	std::println("\nInterrupted");
@@ -34,12 +32,13 @@ int main() {
 			args_storage.push_back(arg);
 		}
 		std::vector<char*> argv_c(args_storage.size() + 1);
-		for (size_t i = 0; i < args_storage.size(); ++i) {
+		for (std::size_t i = 0; i < args_storage.size(); ++i) {
 			argv_c[i] = args_storage[i].data();
 		}
 		if ((pid = fork()) < 0) {
 			err_sys("error call fork");
-		} else if (pid == 0) {
+		}
+		else if (pid == 0) {
 			// child process
 			execvp(argv_c[0], argv_c.data());
 
