@@ -1,3 +1,4 @@
+#include "intrin.h"
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
@@ -29,9 +30,10 @@ std::string format_message(bool addErrno, const std::string& fmt, Args&&... args
 
 constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr std::size_t PATH_MAX_GUESS = 1024;
-constexpr long OPEN_MAX_GUESS = 256;
+constexpr std::size_t OPEN_MAX_GUESS = 256;
+constexpr std::size_t MAXLINE = 4096;
 
-std::vector<char> path_alloc();
+std::string path_alloc();
 
 long open_max();
 
@@ -72,4 +74,11 @@ template<typename... Args>
 void err_quit(const std::string& fmt, Args&&... args) {
 	std::println(std::cerr, "{}", format_message(false, fmt, std::forward<Args>(args)...));
 	std::exit(1);
+}
+
+/**
+ @brief Read the time-stamp counter.
+*/
+unsigned long long rdtsc() {
+	return __rdtsc();
 }

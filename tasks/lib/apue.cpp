@@ -32,14 +32,13 @@ void set_fl(int fd, int flags) {
 
 /**
  * @brief Allocates a buffer for a path, using system limits.
- * @return std::vector<char> containing the buffer.
- * @throws UnixError on pathconf error.
+ * @return std::string with size PATH_MAX.
  * @throws std::runtime_error on memory allocation error.
  */
-std::vector<char> path_alloc() {
-	static long pathmax = 0;
-	static long posix_version = 0;
-	static long xsi_version = 0;
+std::string path_alloc() {
+	static std::size_t pathmax = 0;
+	static std::size_t posix_version = 0;
+	static std::size_t xsi_version = 0;
 
 	if (posix_version == 0)
 		posix_version = sysconf(_SC_VERSION);
@@ -52,7 +51,6 @@ std::vector<char> path_alloc() {
 #else
 		pathmax = 0;
 #endif
-
 		if (pathmax == 0) {
 			errno = 0;
 			if ((pathmax = pathconf("/", _PC_PATH_MAX)) < 0) {
@@ -67,18 +65,13 @@ std::vector<char> path_alloc() {
 		}
 	}
 
-	size_t size;
-	if ((posix_version < 200112L) && (xsi_version < 4))
-		size = pathmax + 1;
-	else
-		size = pathmax;
-
 	try {
-		std::vector<char> buffer(size);
+		std::string buffer;
+		buffer.resize_and_overwrite(pathmax, [](char* buf, std::size_t count) { return count; });
 		return buffer;
 	}
 	catch (const std::bad_alloc&) {
-		throw std::runtime_error("malloc error for pathname");
+		throw std::runtime_error("malloc error for path_alloc");
 	}
 }
 

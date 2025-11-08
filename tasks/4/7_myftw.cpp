@@ -32,8 +32,7 @@ int main(int argc, char* argv[]) {
 		if (argc != 2)
 			err_quit("Using {}: ftw <base_dir>", argv[0]);
 		nfiles nf;
-		std::string s;
-		s.reserve(1024);
+		auto s = path_alloc();
 		s = argv[1];
 		myftw(s, nf);
 		nf.printStat();
@@ -77,8 +76,8 @@ void myftw(std::string& pathname, nfiles& nf) {
 		std::size_t size = pathname.size();
 		if (strcmp(dirp->d_name, ".") == 0 || strcmp(dirp->d_name, "..") == 0)
 			continue;
-		while (pathname.capacity() + strlen(dirp->d_name) < pathname.capacity()) {
-			pathname.reserve(pathname.capacity() * 2);
+		while (pathname.size() + strlen(dirp->d_name) < pathname.size()) {
+			pathname.resize_and_overwrite(pathname.size() * 2, [](char*, std::size_t s) {return s; });
 		}
 		pathname.append("/");
 		pathname.append(dirp->d_name);
