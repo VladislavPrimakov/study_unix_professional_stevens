@@ -1,11 +1,20 @@
-#include <apue.h>
+﻿#include <apue.h>
 
-/**
- @brief clear flags to fd
- @param fd File descriptor to modify.
- @param flags Flags to set.
- @throws UnixError on fcntl error.
-*/
+void pr_exit(int status) {
+	if (WIFEXITED(status))
+		std::println("Normal exit, exit code = {}", WEXITSTATUS(status));
+	else if (WIFSIGNALED(status))
+		std::println("Abort, exit code = {}{}", WTERMSIG(status),
+#ifdef WCOREDUMP
+			WCOREDUMP(status) ? " (created dump core)" : "");
+#else
+		"");
+#endif
+	else if (WIFSTOPPED(status))
+		std::println("Child process stopped, code signal = {}", WSTOPSIG(status));
+}
+
+
 void clr_fl(int fd, int flags) {
 	int val;
 	if ((val = fcntl(fd, F_GETFL, 0)) < 0)
@@ -15,12 +24,7 @@ void clr_fl(int fd, int flags) {
 		err_ret("call fcntl with F_SETFL");
 }
 
-/**
- @brief set flags to fd
- @param fd File descriptor to modify.
- @param flags Flags to set.
- @throws UnixError on fcntl error.
-*/
+
 void set_fl(int fd, int flags) {
 	int val;
 	if ((val = fcntl(fd, F_GETFL, 0)) < 0)
@@ -30,11 +34,7 @@ void set_fl(int fd, int flags) {
 		err_ret("call fcntl with F_SETFL");
 }
 
-/**
- * @brief Allocates a buffer for a path, using system limits.
- * @return std::string with size PATH_MAX.
- * @throws std::runtime_error on memory allocation error.
- */
+
 std::string path_alloc() {
 	static std::size_t pathmax = 0;
 	static std::size_t posix_version = 0;

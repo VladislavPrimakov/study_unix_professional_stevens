@@ -1,7 +1,6 @@
 //5.1 Напишите реализацию функции setbuf с использованием функции setvbuf.
 
-#include "apue.h"
-#include "intrin.h"
+#include <apue.h>
 
 // if buf is NULL, the stream is unbuffered
 // else make it fully buffered with a buffer size of BUFSIZ
@@ -14,18 +13,18 @@ void mysetbuf(FILE* file, char* buf) {
 int main() {
 	char buf[BUFSIZ];
 	mysetbuf(stdout, buf);
-	auto t1 = rdtsc();
+	//auto t1 = rdtsc();
 	for (std::size_t i = 0; i < 100000; ++i) {
-		printf("This is a test string to demonstrate mysetbuf function.\n");
+		std::println("This is a test string to demonstrate mysetbuf function.");
 	}
-	auto t2 = rdtsc();
-	std::println("Time for fully buffered = {}", t2 - t1);
+	//auto t2 = rdtsc();
+	//std::println("Time for fully buffered = {}", t2 - t1);
 	mysetbuf(stdout, NULL);
-	auto t3 = rdtsc();
+	//auto t3 = rdtsc();
 	for (std::size_t i = 0; i < 100000; ++i) {
-		printf("This is a test string to demonstrate mysetbuf function.\n");
+		std::println("This is a test string to demonstrate mysetbuf function.");
 	}
-	auto t4 = rdtsc();
-	std::println("Time for fully buffered = {}", t4 - t3);
+	//auto t4 = rdtsc();
+	//std::println("Time for fully buffered = {}", t4 - t3);
 	return 0;
 }
