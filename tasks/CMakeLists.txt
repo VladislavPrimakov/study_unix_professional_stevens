@@ -12,7 +12,7 @@ file(GLOB LIB_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.cpp")
 add_library(Lib ${LIB_HEADERS} ${LIB_SOURCES})
 target_include_directories(Lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
-foreach (PART RANGE 1 10)
+foreach (PART RANGE 1 19)
     file(GLOB PART_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${PART}/*.cpp")
     foreach (TASK ${PART_SOURCES})
         get_filename_component(TASK_NAME ${TASK} NAME_WE)

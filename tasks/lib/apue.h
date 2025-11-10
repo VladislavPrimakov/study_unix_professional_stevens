@@ -1,3 +1,6 @@
+#ifndef APUE_H
+#define APUE_H
+
 #include <cerrno>
 #include <climits>
 #include <cstdint>
@@ -6,11 +9,18 @@
 #include <fcntl.h>
 #include <iostream>
 #include <print>
+#include <signal.h>
 #include <string>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+
+
+constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+constexpr std::size_t PATH_MAX_GUESS = 1024;
+constexpr std::size_t OPEN_MAX_GUESS = 256;
+constexpr std::size_t MAXLINE = 4096;
 
 
 template<typename... Args>
@@ -26,11 +36,6 @@ std::string format_message(bool addErrno, const std::string& fmt, Args&&... args
 		return "Formatting error: " + fmt + " (" + e.what() + ")";
 	}
 }
-
-constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-constexpr std::size_t PATH_MAX_GUESS = 1024;
-constexpr std::size_t OPEN_MAX_GUESS = 256;
-constexpr std::size_t MAXLINE = 4096;
 
 /**
  * @brief Allocates a buffer for a path, using system limits.
@@ -110,3 +115,11 @@ inline uint64_t rdtsc() {
 	__asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi), "=c"(aux));
 	return ((uint64_t)hi << 32) | lo;
 }
+
+void TELL_WAIT(void);
+void TELL_PARENT(pid_t);
+void TELL_CHILD(pid_t);
+void WAIT_PARENT(void);
+void WAIT_CHILD(void);
+
+#endif // !APUE_H

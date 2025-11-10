@@ -94,3 +94,50 @@ long open_max() {
 	}
 	return openmax;
 }
+
+volatile sig_atomic_t sigflag;
+sigset_t newmask, oldmask, zeromask;
+
+void sig_usr(int signo) {
+	sigflag = 1;
+}
+
+void TELL_WAIT(void) {
+	if (signal(SIGUSR1, sig_usr) == SIG_ERR)
+		err_sys("call signal(SIGUSR1)");
+	if (signal(SIGUSR2, sig_usr) == SIG_ERR)
+		err_sys("call signal(SIGUSR2)");
+	sigemptyset(&zeromask);
+	sigemptyset(&newmask);
+	sigaddset(&newmask, SIGUSR1);
+	sigaddset(&newmask, SIGUSR2);
+
+	if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0)
+		err_sys("call SIG_BLOCK");
+}
+
+void TELL_PARENT(pid_t pid) {
+	kill(pid, SIGUSR2); /* tell parent we are ready */
+}
+
+void WAIT_PARENT(void) {
+	while (sigflag == 0)
+		sigsuspend(&zeromask); /* wait for answer from parent */
+	sigflag = 0;
+	// reset mask
+	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
+		err_sys("call SIG_SETMASK");
+}
+
+void TELL_CHILD(pid_t pid) {
+	kill(pid, SIGUSR1); /* tell child we are ready */
+}
+
+void WAIT_CHILD(void) {
+	while (sigflag == 0)
+		sigsuspend(&zeromask); /* wawit for answer from child */
+	sigflag = 0;
+	// reset mask
+	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
+		err_sys("call SIG_SETMASK");
+}
