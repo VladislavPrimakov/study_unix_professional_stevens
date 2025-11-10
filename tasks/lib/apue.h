@@ -1,6 +1,6 @@
-#include "intrin.h"
 #include <cerrno>
 #include <climits>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
@@ -11,7 +11,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
-
 
 
 template<typename... Args>
@@ -79,6 +78,8 @@ void err_quit(const std::string& fmt, Args&&... args) {
 /**
  @brief Read the time-stamp counter.
 */
-unsigned long long rdtsc() {
-	return __rdtsc();
+inline uint64_t rdtsc() {
+	unsigned int lo, hi, aux;
+	__asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi), "=c"(aux));
+	return ((uint64_t)hi << 32) | lo;
 }
