@@ -76,10 +76,6 @@ std::string path_alloc() {
 }
 
 
-/**
- * @brief Returns the maximum number of files a process can have open.
- * Caches the result on the first call.
- */
 long open_max() {
 	static long openmax = 0;
 #ifdef OPEN_MAX

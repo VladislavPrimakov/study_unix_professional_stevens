@@ -39,7 +39,12 @@ constexpr std::size_t MAXLINE = 4096;
  */
 std::string path_alloc();
 
+/**
+ * @brief Returns the maximum number of files a process can have open.
+ * Caches the result on the first call.
+ */
 long open_max();
+
 /**
  @brief set flags to fd
  @param fd File descriptor to modify.
