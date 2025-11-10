@@ -38,6 +38,13 @@ std::string format_message(bool addErrno, const std::string& fmt, Args&&... args
 }
 
 /**
+ * @brief Executes a command string by invoking the system shell.
+ * @param cmdstring Command string to execute.
+ * @return Exit status of the command, or -1 on error.
+ */
+int system(const char* cmdstring);
+
+/**
  * @brief Allocates a buffer for a path, using system limits.
  * @return std::string with size PATH_MAX.
  * @throws std::runtime_error on memory allocation error.
