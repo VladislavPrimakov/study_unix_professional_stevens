@@ -32,13 +32,35 @@ constexpr std::size_t PATH_MAX_GUESS = 1024;
 constexpr std::size_t OPEN_MAX_GUESS = 256;
 constexpr std::size_t MAXLINE = 4096;
 
+/**
+ * @brief Allocates a buffer for a path, using system limits.
+ * @return std::string with size PATH_MAX.
+ * @throws std::runtime_error on memory allocation error.
+ */
 std::string path_alloc();
 
 long open_max();
-
+/**
+ @brief set flags to fd
+ @param fd File descriptor to modify.
+ @param flags Flags to set.
+ @throws UnixError on fcntl error.
+*/
 void set_fl(int fd, int flags);
 
+/**
+ @brief clear flags to fd
+ @param fd File descriptor to modify.
+ @param flags Flags to set.
+ @throws UnixError on fcntl error.
+*/
 void clr_fl(int fd, int flags);
+
+/**
+ @brief Print exit status of a child process.
+ @param status Status value returned by wait or waitpid.
+*/
+void pr_exit(int status);
 
 /**
  @brief Print user message + errno. Exit(1).
