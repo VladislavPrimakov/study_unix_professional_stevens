@@ -165,3 +165,27 @@ void WAIT_CHILD(void) {
 	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
 		err_sys("call SIG_SETMASK");
 }
+
+
+void pr_mask(const std::string& str) {
+	sigset_t sigset;
+	int errno_save;
+	errno_save = errno;
+	if (sigprocmask(0, NULL, &sigset) < 0) {
+		err_ret("call sigprocmask");
+	}
+	else {
+		std::print("{}", str);
+		if (sigismember(&sigset, SIGINT))
+			std::print(" SIGINT ");
+		if (sigismember(&sigset, SIGQUIT))
+			std::print(" SIGQUIT ");
+		if (sigismember(&sigset, SIGUSR1))
+			std::print(" SIGUSR1 ");
+		if (sigismember(&sigset, SIGALRM))
+			std::print(" SIGALRM ");
+		// continue for all signals you want to check
+		std::println();
+	}
+	errno = errno_save;
+}

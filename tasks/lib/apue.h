@@ -129,4 +129,11 @@ void TELL_CHILD(pid_t);
 void WAIT_PARENT(void);
 void WAIT_CHILD(void);
 
+
+/**
+@brief Print the signal mask of the calling process.
+@param str Message to print before the mask.
+*/
+void pr_mask(const std::string& str);
+
 #endif // !APUE_H
