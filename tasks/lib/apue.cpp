@@ -126,29 +126,27 @@ void sig_usr(int signo) {
 	sigflag = 1;
 }
 
-void TELL_WAIT(void) {
-	if (signal(SIGUSR1, sig_usr) == SIG_ERR)
+void TELL_WAIT() {
+	if (apue_signal(SIGUSR1, sig_usr) == SIG_ERR)
 		err_sys("call signal(SIGUSR1)");
-	if (signal(SIGUSR2, sig_usr) == SIG_ERR)
+	if (apue_signal(SIGUSR2, sig_usr) == SIG_ERR)
 		err_sys("call signal(SIGUSR2)");
 	sigemptyset(&zeromask);
 	sigemptyset(&newmask);
 	sigaddset(&newmask, SIGUSR1);
 	sigaddset(&newmask, SIGUSR2);
-
 	if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0)
-		err_sys("call SIG_BLOCK");
+		err_sys("call sigprocmask(SIG_BLOCK)");
 }
 
 void TELL_PARENT(pid_t pid) {
 	kill(pid, SIGUSR2); /* tell parent we are ready */
 }
 
-void WAIT_PARENT(void) {
+void WAIT_PARENT() {
 	while (sigflag == 0)
 		sigsuspend(&zeromask); /* wait for answer from parent */
 	sigflag = 0;
-	// reset mask
 	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
 		err_sys("call SIG_SETMASK");
 }
@@ -157,11 +155,10 @@ void TELL_CHILD(pid_t pid) {
 	kill(pid, SIGUSR1); /* tell child we are ready */
 }
 
-void WAIT_CHILD(void) {
+void WAIT_CHILD() {
 	while (sigflag == 0)
-		sigsuspend(&zeromask); /* wawit for answer from child */
+		sigsuspend(&zeromask); /* wait for answer from child */
 	sigflag = 0;
-	// reset mask
 	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
 		err_sys("call SIG_SETMASK");
 }
@@ -171,21 +168,42 @@ void pr_mask(const std::string& str) {
 	sigset_t sigset;
 	int errno_save;
 	errno_save = errno;
+	std::string s = str;
 	if (sigprocmask(0, NULL, &sigset) < 0) {
 		err_ret("call sigprocmask");
 	}
 	else {
-		std::print("{}", str);
-		if (sigismember(&sigset, SIGINT))
-			std::print(" SIGINT ");
-		if (sigismember(&sigset, SIGQUIT))
-			std::print(" SIGQUIT ");
-		if (sigismember(&sigset, SIGUSR1))
-			std::print(" SIGUSR1 ");
-		if (sigismember(&sigset, SIGALRM))
-			std::print(" SIGALRM ");
-		// continue for all signals you want to check
-		std::println();
+		bool first = false;
+		for (int i = 1; i < NSIG; ++i) {
+			if (sigismember(&sigset, i)) {
+				if (!first) {
+					first = true;
+					s += " " + std::string(strsignal(i));
+				}
+				else {
+					s += " | " + std::string(strsignal(i));
+				}
+			}
+		}
+		std::println("\n{}", s);
 	}
 	errno = errno_save;
+}
+
+Sigfunc* apue_signal(int signo, Sigfunc* func) {
+	struct sigaction act, oact;
+	act.sa_handler = func;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	if (signo == SIGALRM) {
+#ifdef SA_INTERRUPT
+		act.sa_flags |= SA_INTERRUPT;
+#endif
+	}
+	else {
+		act.sa_flags |= SA_RESTART;
+	}
+	if (sigaction(signo, &act, &oact) < 0)
+		return(SIG_ERR);
+	return(oact.sa_handler);
 }

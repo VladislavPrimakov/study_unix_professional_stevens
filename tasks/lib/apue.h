@@ -11,17 +11,18 @@
 #include <print>
 #include <signal.h>
 #include <string>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
-
 
 constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr std::size_t PATH_MAX_GUESS = 1024;
 constexpr std::size_t OPEN_MAX_GUESS = 256;
 constexpr std::size_t MAXLINE = 4096;
 
+using Sigfunc = void(int);
 
 template<typename... Args>
 std::string format_message(bool addErrno, const std::string& fmt, Args&&... args) {
@@ -123,11 +124,11 @@ inline uint64_t rdtsc() {
 	return ((uint64_t)hi << 32) | lo;
 }
 
-void TELL_WAIT(void);
+void TELL_WAIT();
 void TELL_PARENT(pid_t);
 void TELL_CHILD(pid_t);
-void WAIT_PARENT(void);
-void WAIT_CHILD(void);
+void WAIT_PARENT();
+void WAIT_CHILD();
 
 
 /**
@@ -135,5 +136,13 @@ void WAIT_CHILD(void);
 @param str Message to print before the mask.
 */
 void pr_mask(const std::string& str);
+
+/**
+ @brief Simplified signal handling function.
+ @param signo Signal number.
+ @param func Pointer to the signal handling function.
+ @return Previous signal handling function pointer.
+*/
+Sigfunc* apue_signal(int signo, Sigfunc* func);
 
 #endif // !APUE_H
