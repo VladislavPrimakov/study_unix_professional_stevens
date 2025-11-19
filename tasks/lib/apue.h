@@ -8,6 +8,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <optional>
 #include <print>
 #include <signal.h>
 #include <string>
@@ -36,6 +37,13 @@ std::string format_message(bool addErrno, const std::string& fmt, Args&&... args
 	catch (const std::format_error& e) {
 		return "Formatting error: " + fmt + " (" + e.what() + ")";
 	}
+}
+
+template<typename... Args>
+std::string format_message(int err_code, const std::string& fmt, Args&&... args) {
+	std::string msg = format_message(false, fmt, std::forward<Args>(args)...);
+	msg += ": " + std::string(strerror(err_code));
+	return msg;
 }
 
 /**
@@ -79,6 +87,15 @@ void clr_fl(int fd, int flags);
  @param status Status value returned by wait or waitpid.
 */
 void pr_exit(int status);
+
+/**
+ @brief Print user message + given errno. Exit(1).
+*/
+template<typename... Args>
+void err_exit(int err, const std::string& fmt, Args&&... args) {
+	std::println(std::cerr, "{}", format_message(err, fmt, std::forward<Args>(args)...));
+	std::exit(1);
+}
 
 /**
  @brief Print user message + errno. Exit(1).
@@ -125,6 +142,7 @@ inline uint64_t rdtsc() {
 }
 
 void TELL_WAIT();
+void TELL_DONE();
 void TELL_PARENT(pid_t);
 void TELL_CHILD(pid_t);
 void WAIT_PARENT();

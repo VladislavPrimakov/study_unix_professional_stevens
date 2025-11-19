@@ -121,15 +121,16 @@ int system(const char* cmdstring) {
 
 volatile sig_atomic_t sigflag;
 sigset_t newmask, oldmask, zeromask;
+Sigfunc* old_handler_usr1, * old_handler_usr2;
 
 void sig_usr(int signo) {
 	sigflag = 1;
 }
 
 void TELL_WAIT() {
-	if (apue_signal(SIGUSR1, sig_usr) == SIG_ERR)
+	if ((old_handler_usr1 = apue_signal(SIGUSR1, sig_usr)) == SIG_ERR)
 		err_sys("call signal(SIGUSR1)");
-	if (apue_signal(SIGUSR2, sig_usr) == SIG_ERR)
+	if ((old_handler_usr2 = apue_signal(SIGUSR2, sig_usr)) == SIG_ERR)
 		err_sys("call signal(SIGUSR2)");
 	sigemptyset(&zeromask);
 	sigemptyset(&newmask);
@@ -137,6 +138,16 @@ void TELL_WAIT() {
 	sigaddset(&newmask, SIGUSR2);
 	if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0)
 		err_sys("call sigprocmask(SIG_BLOCK)");
+}
+
+void TELL_DONE() {
+	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0) {
+		err_sys("call sigprocmask(SIG_SETMASK)");
+	}
+	if (apue_signal(SIGUSR1, old_handler_usr1) == SIG_ERR)
+		err_sys("call signal(SIGUSR1)");
+	if (apue_signal(SIGUSR2, old_handler_usr2) == SIG_ERR)
+		err_sys("call signal(SIGUSR2)");
 }
 
 void TELL_PARENT(pid_t pid) {
@@ -147,8 +158,6 @@ void WAIT_PARENT() {
 	while (sigflag == 0)
 		sigsuspend(&zeromask); /* wait for answer from parent */
 	sigflag = 0;
-	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
-		err_sys("call SIG_SETMASK");
 }
 
 void TELL_CHILD(pid_t pid) {
@@ -159,8 +168,6 @@ void WAIT_CHILD() {
 	while (sigflag == 0)
 		sigsuspend(&zeromask); /* wait for answer from child */
 	sigflag = 0;
-	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
-		err_sys("call SIG_SETMASK");
 }
 
 
