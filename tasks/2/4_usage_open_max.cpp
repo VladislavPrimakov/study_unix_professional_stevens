@@ -1,6 +1,6 @@
 // example usage of open_max() function from apue.h
 
-#include <apue.h>
+#include "apue.h"
 
 int main() {
 	long max_files = open_max();

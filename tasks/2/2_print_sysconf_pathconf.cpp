@@ -1,6 +1,6 @@
 // example usage of sysconf() and pathconf() to print system limits
 
-#include <apue.h>
+#include "apue.h"
 
 void pr_sysconf(const std::string& mesg, int name);
 

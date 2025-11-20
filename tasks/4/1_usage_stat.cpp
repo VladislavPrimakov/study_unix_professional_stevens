@@ -1,6 +1,6 @@
 // output file type information in arguments
 
-#include <apue.h>
+#include "apue.h"
 
 int main(int argc, char* argv[]) {
 	struct stat buf {};

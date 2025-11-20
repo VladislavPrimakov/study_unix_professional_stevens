@@ -1,6 +1,6 @@
 //5.1 Напишите реализацию функции setbuf с использованием функции setvbuf.
 
-#include <apue.h>
+#include "apue.h"
 
 void mysetbuf(FILE* file, char* buf) {
 	if (setvbuf(file, buf, buf ? _IOFBF : _IONBF, BUFSIZ) < 0) {

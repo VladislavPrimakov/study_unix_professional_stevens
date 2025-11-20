@@ -1,6 +1,6 @@
 // usage gec/putc to copy input to output, with error checking
 
-#include <apue.h>
+#include "apue.h"
 
 int main() {
 	int c;

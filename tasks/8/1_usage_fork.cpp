@@ -1,4 +1,4 @@
-#include <apue.h>
+#include "apue.h"
 
 int globvar = 6;
 std::string buf = "record to stdout\n";

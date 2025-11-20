@@ -1,6 +1,6 @@
 // usage getcwd
 
-#include <apue.h>
+#include "apue.h"
 
 int main(void) {
 	if (chdir("/home") < 0)

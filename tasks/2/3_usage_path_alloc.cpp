@@ -1,6 +1,6 @@
 // example usage of path_alloc() function from apue
 
-#include <apue.h>
+#include "apue.h"
 
 int main(int argc, char* argv[]) {
 	std::println("Allocating path buffer...");

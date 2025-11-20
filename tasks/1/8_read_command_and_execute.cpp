@@ -1,6 +1,6 @@
 // read commands from stdin and execution them
 
-#include <apue.h>
+#include "apue.h"
 #include <sstream>
 
 void sig_int(int signo) {

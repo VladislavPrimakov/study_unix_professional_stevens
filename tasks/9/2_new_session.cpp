@@ -1,7 +1,7 @@
 //Напишите программу, которая с помощью функции fork порождает дочерний процесс, создающий, в свою очередь, новый сеанс.
 // Проверьте, становится ли дочерний процесс лидером группы и теряет ли он управляющий терминал.
 
-#include <apue.h>
+#include "apue.h"
 
 void pr_ids(std::string name) {
 	std::println("{}: pid = {}, ppid = {}, pgrp = {}, tpgrp = {}", name, getpid(), getppid(), getpgrp(), tcgetpgrp(STDIN_FILENO));

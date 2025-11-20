@@ -1,7 +1,7 @@
 //Напишите утилиту, аналогичную cp(1), которая копировала бы файлы с дырками, не записывая байты со значением 0 в выходной файл.
 
 #include <algorithm>
-#include <apue.h>
+#include "apue.h"
 
 void write_data(int fd_dest, const char* data, std::size_t size) {
 	std::size_t written = 0;

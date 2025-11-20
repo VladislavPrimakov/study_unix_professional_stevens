@@ -1,6 +1,6 @@
 // usage st_dev st_rdev
 
-#include <apue.h>
+#include "apue.h"
 #include <sys/sysmacros.h> 
 #include <sys/types.h>
 

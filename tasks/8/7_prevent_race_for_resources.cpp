@@ -1,4 +1,4 @@
-#include <apue.h>
+#include "apue.h"
 
 static void charatatime(const std::string&);
 

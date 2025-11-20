@@ -1,6 +1,6 @@
 // usage strftime
 
-#include <apue.h>
+#include "apue.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

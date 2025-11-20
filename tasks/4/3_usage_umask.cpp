@@ -1,6 +1,6 @@
 // usage umask
 
-#include <apue.h>
+#include "apue.h"
 
 #define RWRWRW (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)
 

@@ -1,6 +1,6 @@
 // usage getpwnam
 
-#include <apue.h>
+#include "apue.h"
 #include <pwd.h>
 #include <stddef.h>
 #include <string.h> 

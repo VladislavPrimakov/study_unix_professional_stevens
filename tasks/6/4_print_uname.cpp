@@ -1,7 +1,7 @@
 // Напишите программу, которая вызывает функцию uname и выводит содержимое всех полей структуры utsname. 
 // Сравните получившиеся результаты с тем, что выводит команда uname(1).
 
-#include <apue.h>
+#include "apue.h"
 #include <sys/utsname.h>
 
 void print_utsname(const struct utsname& uts) {
