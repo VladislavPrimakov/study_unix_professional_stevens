@@ -24,6 +24,7 @@ constexpr std::size_t OPEN_MAX_GUESS = 256;
 constexpr std::size_t MAXLINE = 4096;
 
 using Sigfunc = void(int);
+using ThreadFunc = void* (*)(void*);
 
 template<typename... Args>
 std::string format_message(bool addErrno, const std::string& fmt, Args&&... args) {
