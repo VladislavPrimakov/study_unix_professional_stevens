@@ -2,12 +2,14 @@
 #define APUE_H
 
 #include <cerrno>
+#include <chrono>
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <print>
 #include <signal.h>
@@ -46,6 +48,34 @@ std::string format_message(int err_code, const std::string& fmt, Args&&... args)
 	msg += ": " + std::string(strerror(err_code));
 	return msg;
 }
+
+/**
+ * @brief Converts a std::chrono::system_clock::time_point to a timespec structure.
+ * @param tp Time point to convert.
+ * @return Shared pointer to a timespec structure.
+ */
+struct timespec to_timespec(const std::chrono::system_clock::time_point& tp);
+
+/**
+ * @brief Converts a std::chrono::nanoseconds duration to a timespec structure.
+ * @param ns Duration in nanoseconds to convert.
+ * @return Shared pointer to a timespec structure.
+ */
+struct timespec to_timespec(const std::chrono::nanoseconds& ns);
+
+/**
+ * @brief Converts a timespec structure to a std::chrono::system_clock::time_point.
+ * @param ts Timespec structure to convert.
+ * @return Corresponding time_point.
+ */
+std::chrono::system_clock::time_point to_time_point(const struct timespec& ts);
+/**
+ * @brief Creates a detached thread.
+ * @param fn Thread function to execute.
+ * @param arg Argument to pass to the thread function.
+ * @return 0 on success, error number on failure.
+ */
+int makethread(ThreadFunc fn, void* arg);
 
 /**
  * @brief Executes a command string by invoking the system shell.
@@ -96,6 +126,14 @@ template<typename... Args>
 void err_exit(int err, const std::string& fmt, Args&&... args) {
 	std::println(std::cerr, "{}", format_message(err, fmt, std::forward<Args>(args)...));
 	std::exit(1);
+}
+
+/**
+ @brief Print user message + given errno.
+*/
+template<typename... Args>
+void err_cont(int err, const std::string& fmt, Args&&... args) {
+	std::println(std::cerr, "{}", format_message(err, fmt, std::forward<Args>(args)...));
 }
 
 /**
