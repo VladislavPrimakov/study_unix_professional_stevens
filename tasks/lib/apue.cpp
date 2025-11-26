@@ -27,6 +27,89 @@ std::chrono::system_clock::time_point to_time_point(const struct timespec& ts) {
 	return system_clock::time_point(duration);
 }
 
+int set_cloexec(int fd) {
+	int val;
+	if ((val = fcntl(fd, F_GETFD, 0)) < 0)
+		return(-1);
+	val |= FD_CLOEXEC;
+	return(fcntl(fd, F_SETFD, val));
+}
+
+int lockfile(int fd) {
+	struct flock fl;
+	fl.l_type = F_WRLCK;
+	fl.l_start = 0;
+	fl.l_whence = SEEK_SET;
+	fl.l_len = 0;
+	return(fcntl(fd, F_SETLK, &fl));
+}
+
+void daemonize(const char* cmd) {
+	int i, fd0, fd1, fd2;
+	pid_t pid;
+	struct rlimit rl;
+	struct sigaction sa;
+	umask(0);
+
+	if (getrlimit(RLIMIT_NOFILE, &rl) < 0)
+		err_quit("{}: cant get max descriptor number", cmd);
+
+	if ((pid = fork()) < 0)
+		err_quit("{}: call fork", cmd);
+	else if (pid != 0)
+		exit(0);
+	setsid();
+
+	sa.sa_handler = SIG_IGN;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	if (sigaction(SIGHUP, &sa, NULL) < 0)
+		err_quit("{}: call sigaction to ignore SIGHUP", cmd);
+	if ((pid = fork()) < 0)
+		err_quit("{}: call fork", cmd);
+	else if (pid != 0)
+		exit(0);
+
+	if (chdir("/") < 0)
+		err_quit("{}: call chdir(\"/\")", cmd);
+
+	if (rl.rlim_max == RLIM_INFINITY)
+		rl.rlim_max = 1024;
+	for (i = 0; i < rl.rlim_max; i++)
+		close(i);
+
+	fd0 = open("/dev/null", O_RDWR);
+	fd1 = dup(0);
+	fd2 = dup(0);
+
+	openlog(cmd, LOG_CONS, LOG_DAEMON);
+	if (fd0 != 0 || fd1 != 1 || fd2 != 2) {
+		syslog(LOG_ERR, "error fd %d %d %d", fd0, fd1, fd2);
+		exit(1);
+	}
+}
+
+int already_running(void) {
+	int fd;
+	fd = open(LOCKFILE, O_RDWR | O_CREAT, LOCKMODE);
+	if (fd < 0) {
+		syslog(LOG_ERR, "can't open %s: %s", LOCKFILE, strerror(errno));
+		exit(1);
+	}
+	if (lockfile(fd) < 0) {
+		if (errno == EACCES || errno == EAGAIN) {
+			close(fd);
+			return(1);
+		}
+		syslog(LOG_ERR, "can't set block for %s: %s", LOCKFILE, strerror(errno));
+		exit(1);
+	}
+	ftruncate(fd, 0);
+	std::string str_buf = std::to_string(getpid());
+	write(fd, str_buf.data(), str_buf.size());
+	return(0);
+}
+
 int makethread(ThreadFunc fn, void* arg) {
 	int err;
 	pthread_t tid;
@@ -55,6 +138,27 @@ void pr_exit(int status) {
 		std::println("Child process stopped, code signal = {}", WSTOPSIG(status));
 }
 
+int lock_reg(int fd, int cmd, int type, off_t offset, int whence, off_t len) {
+	struct flock lock;
+	lock.l_type = type; /* F_RDLCK, F_WRLCK, F_UNLCK */
+	lock.l_start = offset;
+	lock.l_whence = whence; /* SEEK_SET, SEEK_CUR, SEEK_END */
+	lock.l_len = len;
+	return(fcntl(fd, cmd, &lock));
+}
+
+pid_t lock_test(int fd, int type, off_t offset, int whence, off_t len) {
+	struct flock lock;
+	lock.l_type = type;
+	lock.l_start = offset;
+	lock.l_whence = whence;
+	lock.l_len = len;
+	if (fcntl(fd, F_GETLK, &lock) < 0)
+		err_sys("fcntl error");
+	if (lock.l_type == F_UNLCK)
+		return(0);
+	return(lock.l_pid);
+}
 
 void clr_fl(int fd, int flags) {
 	int val;

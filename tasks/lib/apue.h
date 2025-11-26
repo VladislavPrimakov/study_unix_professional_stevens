@@ -15,11 +15,15 @@
 #include <signal.h>
 #include <string>
 #include <string.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <vector>
 
+constexpr const char* LOCKFILE = "/var/run/daemon.pid";
+constexpr mode_t LOCKMODE(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr std::size_t PATH_MAX_GUESS = 1024;
 constexpr std::size_t OPEN_MAX_GUESS = 256;
@@ -69,6 +73,7 @@ struct timespec to_timespec(const std::chrono::nanoseconds& ns);
  * @return Corresponding time_point.
  */
 std::chrono::system_clock::time_point to_time_point(const struct timespec& ts);
+
 /**
  * @brief Creates a detached thread.
  * @param fn Thread function to execute.
@@ -76,6 +81,32 @@ std::chrono::system_clock::time_point to_time_point(const struct timespec& ts);
  * @return 0 on success, error number on failure.
  */
 int makethread(ThreadFunc fn, void* arg);
+
+/**
+ * @brief Sets the close-on-exec (FD_CLOEXEC) flag on the given file descriptor.
+ * @param fd File descriptor to modify.
+ * @return 0 on success, -1 on failure.
+ */
+int set_cloexec(int fd);
+
+/**
+ * @brief Applies a write lock on the entire file associated with the given file descriptor.
+ * @param fd File descriptor of the file to lock.
+ * @return 0 on success, -1 on failure.
+ */
+int lockfile(int fd);
+
+/**
+ * @brief Daemonizes the calling process.
+ * @param cmd Command name for syslog.
+ */
+void daemonize(const char* cmd);
+
+/**
+ * @brief Checks if the daemon is already running using a lock file.
+ * @return 1 if already running, 0 otherwise.
+ */
+int already_running(void);
 
 /**
  * @brief Executes a command string by invoking the system shell.
@@ -98,10 +129,70 @@ std::string path_alloc();
 long open_max();
 
 /**
+ @brief Apply, remove, or test a record lock on a file.
+ @param fd File descriptor of the file to lock.
+ @param cmd F_SETLK, F_SETLKW, or F_GETLK.
+ @param type F_RDLCK, F_WRLCK, or F_UNLCK.
+ @param offset Byte offset where the lock begins.
+ @param whence SEEK_SET, SEEK_CUR, or SEEK_END.
+ @param len Number of bytes to lock; 0 means to EOF.
+ @return 0 on success, -1 on failure.
+*/
+int lock_reg(int fd, int cmd, int type, off_t offset, int whence, off_t len);
+
+template <int Cmd, int Type>
+inline int file_lock(int fd, off_t offset, int whence, off_t len) {
+	return lock_reg(fd, Cmd, Type, offset, whence, len);
+}
+
+inline int read_lock(int fd, off_t offset, int whence, off_t len) {
+	return file_lock<F_SETLK, F_RDLCK>(fd, offset, whence, len);
+}
+
+inline int readw_lock(int fd, off_t offset, int whence, off_t len) {
+	return file_lock<F_SETLKW, F_RDLCK>(fd, offset, whence, len);
+}
+
+inline int write_lock(int fd, off_t offset, int whence, off_t len) {
+	return file_lock<F_SETLK, F_WRLCK>(fd, offset, whence, len);
+}
+
+inline int writew_lock(int fd, off_t offset, int whence, off_t len) {
+	return file_lock<F_SETLKW, F_WRLCK>(fd, offset, whence, len);
+}
+
+inline int un_lock(int fd, off_t offset, int whence, off_t len) {
+	return file_lock<F_SETLK, F_UNLCK>(fd, offset, whence, len);
+}
+
+/**
+ @brief Tests for a record lock on a file.
+ @param fd File descriptor of the file to test.
+ @param type F_RDLCK or F_WRLCK.
+ @param offset Byte offset where the lock begins.
+ @param whence SEEK_SET, SEEK_CUR, or SEEK_END.
+ @param len Number of bytes to test; 0 means to EOF.
+ @return 0 if the lock is not held by another process; otherwise, returns the PID of the process holding the lock.
+*/
+pid_t lock_test(int fd, int type, off_t offset, int whence, off_t len);
+
+template <int Type>
+inline bool is_lockable(int fd, off_t offset, int whence, off_t len) {
+	return lock_test(fd, Type, offset, whence, len) == 0;
+}
+
+inline bool is_read_lockable(int fd, off_t offset, int whence, off_t len) {
+	return is_lockable<F_RDLCK>(fd, offset, whence, len);
+}
+
+inline bool is_write_lockable(int fd, off_t offset, int whence, off_t len) {
+	return is_lockable<F_WRLCK>(fd, offset, whence, len);
+}
+
+/**
  @brief set flags to fd
  @param fd File descriptor to modify.
  @param flags Flags to set.
- @throws UnixError on fcntl error.
 */
 void set_fl(int fd, int flags);
 
@@ -109,7 +200,6 @@ void set_fl(int fd, int flags);
  @brief clear flags to fd
  @param fd File descriptor to modify.
  @param flags Flags to set.
- @throws UnixError on fcntl error.
 */
 void clr_fl(int fd, int flags);
 
