@@ -3,7 +3,7 @@
 #include "apue.h"
 
 int main() {
-	if (open("tempfile", O_RDWR | O_CREAT) < 0)
+	if (open("tempfile", O_RDWR | O_CREAT, FILE_MODE) < 0)
 		err_sys("call open for file tempfile");
 	sleep(15);
 	if (unlink("tempfile") < 0)

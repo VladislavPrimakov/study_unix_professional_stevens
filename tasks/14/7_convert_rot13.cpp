@@ -3,9 +3,8 @@
 #include <fcntl.h>
 #define BSZ 4096
 unsigned char buf[BSZ];
-unsigned char
 
-translate(unsigned char c) {
+unsigned char translate(unsigned char c) {
 	if (isalpha(c)) {
 		if (c >= 'n')
 			c -= 13;

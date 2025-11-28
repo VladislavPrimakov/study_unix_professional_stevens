@@ -6,7 +6,9 @@ int main(void) {
 	char name[L_tmpnam], line[MAXLINE];
 	FILE* fp;
 	std::println("{}", tmpnam(NULL));
-	tmpnam(name);
+	if (tmpnam(name) == NULL) {
+		err_sys("call tmpnam");
+	}
 	std::println("{}", name);
 	if ((fp = tmpfile()) == NULL)
 		err_sys("call tmpfile");

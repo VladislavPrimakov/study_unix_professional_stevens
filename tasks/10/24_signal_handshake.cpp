@@ -19,7 +19,9 @@ void inc(const int& fd, const std::string& msg) {
 		num++;
 		lseek(fd, 0, SEEK_SET);
 		s = std::to_string(num);
-		write(fd, s.data(), s.size());
+		if (write(fd, s.data(), s.size()) != s.size()) {
+			err_quit("call write");
+		}
 		std::println("{} incremented to {}", msg, num);
 	}
 	else {

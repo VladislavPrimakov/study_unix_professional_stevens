@@ -54,6 +54,24 @@ std::string format_message(int err_code, const std::string& fmt, Args&&... args)
 }
 
 /**
+ * @brief Reads exactly nbytes from a file descriptor into a buffer.
+ * @param fd File descriptor to read from.
+ * @param buf Buffer to read into.
+ * @param nbytes Number of bytes to read.
+ * @return Number of bytes read, or -1 on error.
+ */
+ssize_t readn(int fd, void* buf, size_t nbytes);
+
+/**
+ * @brief Writes exactly nbytes from a buffer to a file descriptor.
+ * @param fd File descriptor to write to.
+ * @param buf Buffer to write from.
+ * @param nbytes Number of bytes to write.
+ * @return Number of bytes written, or -1 on error.
+ */
+ssize_t writen(int fd, void* buf, size_t nbytes);
+
+/**
  * @brief Converts a std::chrono::system_clock::time_point to a timespec structure.
  * @param tp Time point to convert.
  * @return Shared pointer to a timespec structure.
