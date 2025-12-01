@@ -296,6 +296,15 @@ void err_quit(const std::string& fmt, Args&&... args) {
 }
 
 /**
+ @brief Print user message.
+*/
+template<typename... Args>
+void err_msg(const std::string& fmt, Args&&... args) {
+	std::println(std::cerr, "{}", format_message(false, fmt, std::forward<Args>(args)...));
+	return;
+}
+
+/**
  @brief Read the time-stamp counter.
 */
 inline uint64_t rdtsc() {

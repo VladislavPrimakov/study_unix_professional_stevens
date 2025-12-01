@@ -14,12 +14,12 @@ void TELL_DONE_PIPE() {
 	close(pfd2[1]);
 }
 
-void TELL_PARENT() {
+void TELL_PARENT_PIPE() {
 	if (write(pfd2[1], "c", 1) != 1)
 		err_sys("TELL_PARENT: call write");
 }
 
-void WAIT_PARENT() {
+void WAIT_PARENT_PIPE() {
 	char c;
 	if (read(pfd1[0], &c, 1) != 1)
 		err_sys("WAIT_PARENT: call read");
@@ -27,12 +27,12 @@ void WAIT_PARENT() {
 		err_quit("WAIT_PARENT: taken incorrect data");
 }
 
-void TELL_CHILD() {
+void TELL_CHILD_PIPE() {
 	if (write(pfd1[1], "p", 1) != 1)
 		err_sys("TELL_CHILD: call write");
 }
 
-void WAIT_CHILD() {
+void WAIT_CHILD_PIPE() {
 	char c;
 	if (read(pfd2[0], &c, 1) != 1)
 		err_sys("WAIT_CHILD: call read");
