@@ -14,22 +14,22 @@ int main() {
 		err_sys("call creat \"templock\"");
 	if (write(fd, "ab", 2) != 2)
 		err_sys("call write to \"templock\" \"ab\"");
-	TELL_WAIT();
+	TELL_WAIT_SIGNAL();
 	if ((pid = fork()) < 0) {
 		err_sys("call fork");
 	}
 	else if (pid == 0) {
 		lockabyte("child", fd, 0);
-		TELL_PARENT(getppid());
-		WAIT_PARENT();
+		TELL_PARENT_SIGNAL(getppid());
+		WAIT_PARENT_SIGNAL();
 		lockabyte("child", fd, 1);
 	}
 	else {
 		lockabyte("parent", fd, 1);
-		TELL_CHILD(pid);
-		WAIT_CHILD();
+		TELL_CHILD_SIGNAL(pid);
+		WAIT_CHILD_SIGNAL();
 		lockabyte("parent", fd, 0);
 	}
-	TELL_DONE();
+	TELL_DONE_SIGNAL();
 	return 0;
 }

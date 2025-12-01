@@ -39,7 +39,7 @@ int main() {
 		err_sys("call write");
 	}
 	pid_t pid;
-	TELL_WAIT();
+	TELL_WAIT_SIGNAL();
 	if ((pid = fork()) < 0) {
 		err_sys("fork");
 	}
@@ -48,17 +48,17 @@ int main() {
 		for (std::size_t i = 0; i < n; ++i) {
 			// child process first
 			inc(fd, "Child");
-			TELL_PARENT(ppid);
-			WAIT_PARENT();
+			TELL_PARENT_SIGNAL(ppid);
+			WAIT_PARENT_SIGNAL();
 		}
 	}
 	else { // Parent process
 		for (std::size_t i = 0; i < n; ++i) {
-			WAIT_CHILD();
+			WAIT_CHILD_SIGNAL();
 			inc(fd, "Parent");
-			TELL_CHILD(pid);
+			TELL_CHILD_SIGNAL(pid);
 		}
 	}
-	TELL_DONE();
+	TELL_DONE_SIGNAL();
 	exit(0);
 }

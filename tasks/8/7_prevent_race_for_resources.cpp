@@ -4,17 +4,17 @@ static void charatatime(const std::string&);
 
 int main(void) {
 	pid_t pid;
-	TELL_WAIT();
+	TELL_WAIT_SIGNAL();
 	if ((pid = fork()) < 0) {
 		err_sys("call fork");
 	}
 	else if (pid == 0) {
-		WAIT_PARENT();
+		WAIT_PARENT_SIGNAL();
 		charatatime("from child process\n");
 	}
 	else {
 		charatatime("from parent process\n");
-		TELL_CHILD(pid);
+		TELL_CHILD_SIGNAL(pid);
 	}
 	return 0;
 }
