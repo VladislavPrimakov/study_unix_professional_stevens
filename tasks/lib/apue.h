@@ -78,12 +78,18 @@ ssize_t writen(int fd, void* buf, size_t nbytes);
  */
 struct timespec to_timespec(const std::chrono::system_clock::time_point& tp);
 
-/**
- * @brief Converts a std::chrono::nanoseconds duration to a timespec structure.
- * @param ns Duration in nanoseconds to convert.
- * @return Shared pointer to a timespec structure.
- */
-struct timespec to_timespec(const std::chrono::nanoseconds& ns);
+
+template <typename Rep, typename Period>
+struct timespec to_timespec(const std::chrono::duration<Rep, Period>& d) {
+	using namespace std::chrono;
+	auto total_ns = duration_cast<nanoseconds>(d);
+	auto secs = duration_cast<seconds>(total_ns);
+	auto rem_nanos = total_ns - secs;
+	return {
+		static_cast<time_t>(secs.count()),
+		static_cast<long>(rem_nanos.count())
+	};
+}
 
 /**
  * @brief Converts a timespec structure to a std::chrono::system_clock::time_point.

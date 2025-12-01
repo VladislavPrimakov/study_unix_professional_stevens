@@ -51,15 +51,6 @@ struct timespec to_timespec(const std::chrono::system_clock::time_point& tp) {
 	};
 }
 
-struct timespec to_timespec(const std::chrono::nanoseconds& ns) {
-	using namespace std::chrono;
-	auto secs = duration_cast<seconds>(ns);
-	auto rem_nanos = duration_cast<nanoseconds>(ns - secs);
-	return {
-		static_cast<time_t>(secs.count()),
-		static_cast<long>(rem_nanos.count())
-	};
-}
 
 std::chrono::system_clock::time_point to_time_point(const struct timespec& ts) {
 	using namespace std::chrono;
