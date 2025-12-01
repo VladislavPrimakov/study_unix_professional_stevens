@@ -56,20 +56,20 @@ std::string format_message(int err_code, const std::string& fmt, Args&&... args)
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.
  * @param fd File descriptor to read from.
- * @param buf Buffer to read into.
- * @param nbytes Number of bytes to read.
+ * @param ptr Buffer to read into.
+ * @param n Number of bytes to read.
  * @return Number of bytes read, or -1 on error.
  */
-ssize_t readn(int fd, void* buf, size_t nbytes);
+ssize_t readn(int fd, void* ptr, size_t n);
 
 /**
  * @brief Writes exactly nbytes from a buffer to a file descriptor.
  * @param fd File descriptor to write to.
- * @param buf Buffer to write from.
- * @param nbytes Number of bytes to write.
+ * @param ptr Buffer to write from.
+ * @param n Number of bytes to write.
  * @return Number of bytes written, or -1 on error.
  */
-ssize_t writen(int fd, void* buf, size_t nbytes);
+ssize_t writen(int fd, void* ptr, size_t n);
 
 /**
  * @brief Converts a std::chrono::system_clock::time_point to a timespec structure.
@@ -205,10 +205,26 @@ inline bool is_lockable(int fd, off_t offset, int whence, off_t len) {
 	return lock_test(fd, Type, offset, whence, len) == 0;
 }
 
+/**
+ @brief Checks if a read lock can be applied to the specified region of a file.
+ @param fd File descriptor of the file to test.
+ @param offset Byte offset where the lock begins.
+ @param whence SEEK_SET, SEEK_CUR, or SEEK_END.
+ @param len Number of bytes to test; 0 means to EOF.
+ @return true if the read lock can be applied; false otherwise.
+*/
 inline bool is_read_lockable(int fd, off_t offset, int whence, off_t len) {
 	return is_lockable<F_RDLCK>(fd, offset, whence, len);
 }
 
+/**
+ @brief Checks if a write lock can be applied to the specified region of a file.
+ @param fd File descriptor of the file to test.
+ @param offset Byte offset where the lock begins.
+ @param whence SEEK_SET, SEEK_CUR, or SEEK_END.
+ @param len Number of bytes to test; 0 means to EOF.
+ @return true if the write lock can be applied; false otherwise.
+*/
 inline bool is_write_lockable(int fd, off_t offset, int whence, off_t len) {
 	return is_lockable<F_WRLCK>(fd, offset, whence, len);
 }
@@ -286,6 +302,15 @@ void err_quit(const std::string& fmt, Args&&... args) {
 }
 
 /**
+ @brief Print user message.
+*/
+template<typename... Args>
+void err_msg(const std::string& fmt, Args&&... args) {
+	std::println(std::cerr, "{}", format_message(false, fmt, std::forward<Args>(args)...));
+	return;
+}
+
+/**
  @brief Read the time-stamp counter.
 */
 inline uint64_t rdtsc() {
@@ -294,13 +319,19 @@ inline uint64_t rdtsc() {
 	return ((uint64_t)hi << 32) | lo;
 }
 
-void TELL_WAIT();
-void TELL_DONE();
-void TELL_PARENT(pid_t);
-void TELL_CHILD(pid_t);
-void WAIT_PARENT();
-void WAIT_CHILD();
+void TELL_WAIT_SIGNAL();
+void TELL_DONE_SIGNAL();
+void TELL_PARENT_SIGNAL(pid_t);
+void TELL_CHILD_SIGNAL(pid_t);
+void WAIT_PARENT_SIGNAL();
+void WAIT_CHILD_SIGNAL();
 
+void TELL_WAIT_PIPE();
+void TELL_DONE_PIPE();
+void TELL_PARENT_PIPE();
+void TELL_CHILD_PIPE();
+void WAIT_PARENT_PIPE();
+void WAIT_CHILD_PIPE();
 
 /**
 @brief Print the signal mask of the calling process.
