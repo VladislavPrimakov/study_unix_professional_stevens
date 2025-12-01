@@ -3,7 +3,7 @@
 #include "apue.h"
 
 int main(int argc, char* argv[]) {
-	for (std::size_t i = 0; i < argc; i++)
+	for (std::size_t i = 0; i < static_cast<std::size_t>(argc); i++)
 		std::println("argv[{}]: {}", i, argv[i]);
 	return 0;
 }

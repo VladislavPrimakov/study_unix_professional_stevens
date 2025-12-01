@@ -13,8 +13,8 @@ int main() {
 				err_sys("call writen");
 		}
 		else {
-			char* msg = "invalid arguments\n";
-			if (writen(STDOUT_FILENO, msg, strlen(msg)) < 0)
+			std::string msg = "invalid arguments\n";
+			if (writen(STDOUT_FILENO, msg.data(), msg.size()) < 0)
 				err_sys("call writen");
 		}
 	}

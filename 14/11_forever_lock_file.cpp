@@ -14,7 +14,7 @@ void child_fn(int fd, int times, std::chrono::duration<Rep, Period> d) {
 		if (readw_lock(fd, 0, SEEK_SET, 0) == -1) {
 			err_sys("call read_lock for");
 		}
-		TELL_PARENT(getppid());
+		TELL_PARENT_SIGNAL(getppid());
 		std::println("[{}/{}] Child {} set read_lock", i, times, getpid());
 		struct timespec ts = to_timespec(d);
 		nanosleep(&ts, NULL);
@@ -33,7 +33,7 @@ int main() {
 		err_sys("call open for {}", filepath.c_str());
 	}
 
-	TELL_WAIT();
+	TELL_WAIT_SIGNAL();
 	pid_t pid;
 	if ((pid = fork()) < 0) {
 		err_sys("call fork");
@@ -50,7 +50,7 @@ int main() {
 		}
 		else { // parent
 			// try to lock for write after child locked for read
-			WAIT_CHILD();
+			WAIT_CHILD_SIGNAL();
 			if (writew_lock(fd, 0, SEEK_SET, 0) == -1) {
 				err_sys("parent: call writew_lock for {}", filepath.c_str());
 			}
@@ -65,6 +65,6 @@ int main() {
 	while ((pid = wait(&status)) > 0) {
 		std::println("Child {} finished", pid);
 	}
-	TELL_DONE();
+	TELL_DONE_SIGNAL();
 	exit(0);
 }

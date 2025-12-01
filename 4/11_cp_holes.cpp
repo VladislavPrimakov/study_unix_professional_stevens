@@ -1,7 +1,7 @@
 //Напишите утилиту, аналогичную cp(1), которая копировала бы файлы с дырками, не записывая байты со значением 0 в выходной файл.
 
-#include <algorithm>
 #include "apue.h"
+#include <algorithm>
 
 void write_data(int fd_dest, const char* data, std::size_t size) {
 	std::size_t written = 0;
@@ -18,8 +18,6 @@ int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		err_quit("Usage: {} <file> ... <directory>", argv[0]);
 	}
-	struct stat st_source, st_dir;
-
 	if (mkdir(argv[argc - 1], FILE_MODE) < 0) {
 		if (errno != EEXIST) {
 			err_sys("call mkdir for {}", argv[argc - 1]);
@@ -28,7 +26,7 @@ int main(int argc, char* argv[]) {
 
 	std::size_t BUFF_SIZE = 4096;
 	std::vector<char> buf_read(BUFF_SIZE);
-	for (std::size_t i = 1; i < argc - 1; i++) {
+	for (std::size_t i = 1; i < static_cast<std::size_t>(argc) - 1; i++) {
 		int fd_src = open(argv[i], O_RDONLY);
 		if (fd_src < 0) {
 			err_ret("call open source file {}", argv[i]);

@@ -6,7 +6,7 @@
 
 int main(int argc, char* argv[]) {
 	struct stat buf;
-	for (std::size_t i = 1; i < argc; i++) {
+	for (std::size_t i = 1; i < static_cast<std::size_t>(argc); i++) {
 		std::print("{}: ", argv[i]);
 		if (stat(argv[i], &buf) < 0) {
 			err_ret("call stat");
