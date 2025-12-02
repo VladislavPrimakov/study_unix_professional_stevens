@@ -14,7 +14,6 @@ unsigned int sleep1(unsigned int seconds) {
 }
 
 int main() {
-	unsigned int unslept;
-	unslept = sleep1(5);
+	sleep1(5);
 	return 0;
 }

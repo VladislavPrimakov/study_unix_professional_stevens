@@ -81,16 +81,16 @@ private:
 	void merge() {
 		std::vector<int> result;
 		result.reserve(v.size());
-		std::vector<size_t> current_idx(num_threads);
-		std::vector<size_t> end_idx(num_threads);
-		for (size_t i = 0; i < num_threads; ++i) {
+		std::vector<std::size_t> current_idx(num_threads);
+		std::vector<std::size_t> end_idx(num_threads);
+		for (std::size_t i = 0; i < num_threads; ++i) {
 			current_idx[i] = i * num_elements_per_thread;
 			end_idx[i] = std::min(current_idx[i] + num_elements_per_thread, v.size());
 		}
-		for (size_t k = 0; k < v.size(); ++k) {
+		for (std::size_t k = 0; k < v.size(); ++k) {
 			int min_val = std::numeric_limits<int>::max();
-			size_t min_thread_idx;
-			for (size_t i = 0; i < num_threads; ++i) {
+			std::size_t min_thread_idx = 0;
+			for (std::size_t i = 0; i < num_threads; ++i) {
 				if (current_idx[i] < end_idx[i]) {
 					int val = v[current_idx[i]];
 					if (val < min_val) {

@@ -19,8 +19,8 @@ public:
 		err = pthread_mutex_init(&lock, NULL);
 		if (err != 0)
 			throw std::runtime_error("pthread_mutex_init failed: " + std::to_string(err));
-		pthread_cond_t qready = PTHREAD_COND_INITIALIZER;
-		pthread_mutex_t qlock = PTHREAD_MUTEX_INITIALIZER;
+		ready = PTHREAD_COND_INITIALIZER;
+		lock = PTHREAD_MUTEX_INITIALIZER;
 	}
 	message_process(const message_process&) = delete;
 	message_process& operator=(const message_process&) = delete;

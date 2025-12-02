@@ -19,8 +19,10 @@ int main(void) {
 	pr_exit(status);
 	if ((pid = fork()) < 0)
 		err_sys("call fork");
-	else if (pid == 0)
-		status /= 0; /* dividing by zero genereta signal SIGFPE */
+	else if (pid == 0) {
+		int i = 0;
+		status /= i; /* dividing by zero genereta signal SIGFPE */
+	}
 	if (wait(&status) != pid)
 		err_sys("call wait");
 	pr_exit(status);

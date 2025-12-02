@@ -1,7 +1,7 @@
 #include "apue.h"
 
 void daemonize(const char* cmd) {
-	int i, fd0, fd1, fd2;
+	int fd0, fd1, fd2;
 	pid_t pid;
 	struct rlimit rl;
 	struct sigaction sa;
@@ -31,7 +31,7 @@ void daemonize(const char* cmd) {
 
 	if (rl.rlim_max == RLIM_INFINITY)
 		rl.rlim_max = 1024;
-	for (i = 0; i < rl.rlim_max; i++)
+	for (rlim_t i = 0; i < rl.rlim_max; i++)
 		close(i);
 
 	fd0 = open("/dev/null", O_RDWR);
@@ -64,7 +64,7 @@ int already_running(void) {
 		err_sys("ftruncate error");
 	}
 	std::string str_buf = std::to_string(getpid());
-	if (write(fd, str_buf.data(), str_buf.size()) < str_buf.size()) {
+	if (writen(fd, str_buf.data(), str_buf.size()) < 0) {
 		err_quit("call write");
 	}
 	return(0);

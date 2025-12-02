@@ -59,7 +59,7 @@ void queue_write(struct io_uring* ring, int fd, Request* req) {
 }
 
 int main(int argc, char* argv[]) {
-	int ifd, ofd, i, n, nw;
+	int ifd, ofd;
 	if (argc != 3)
 		err_quit("Usage: {} infile outfile", argv[0]);
 	if ((ifd = open(argv[1], O_RDONLY)) < 0)

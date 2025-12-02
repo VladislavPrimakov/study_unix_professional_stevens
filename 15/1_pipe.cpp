@@ -12,12 +12,17 @@ int main() {
 	}
 	else if (pid > 0) { // parent
 		close(fd[0]);
-		int res = write(fd[1], "Hello world\n", 12);
+		std::string msg = "Hello world\n";
+		if (writen(fd[1], msg.data(), msg.size()) < 0) {
+			err_sys("call write");
+		}
 	}
 	else { // child
 		close(fd[1]);
 		n = read(fd[0], line, MAXLINE);
-		int res = write(STDOUT_FILENO, line, n);
+		if (write(STDOUT_FILENO, line, n) < 0) {
+			err_sys("call write");
+		}
 	}
 	exit(0);
 }

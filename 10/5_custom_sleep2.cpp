@@ -18,12 +18,12 @@ int main() {
 }
 
 void sig_int(int signo) {
-	int i, j;
-	volatile int k;
+	std::size_t i = 0;
+	volatile int k = 0;
 	std::println("funct sig_int started");
 	auto start_time = std::chrono::steady_clock::now();
 	while (std::chrono::steady_clock::now() - start_time < 5s) {
-		for (int j = 0; j < 10000; j++) {
+		for (std::size_t j = 0; j < 10000; j++) {
 			k += i * j;
 		}
 		i++;

@@ -90,7 +90,6 @@ void myftw(std::string pathname, std::optional<struct stat> st, nfiles& nf) {
 	struct dirent* dirp;
 
 	while ((dirp = readdir(dp.get()))) {
-		std::size_t size = pathname.size();
 		if (strcmp(dirp->d_name, ".") == 0 || strcmp(dirp->d_name, "..") == 0)
 			continue;
 		struct stat local_st;
