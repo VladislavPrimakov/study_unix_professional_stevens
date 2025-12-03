@@ -9,13 +9,16 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <liburing.h>
 #include <memory>
+#include <netdb.h>
 #include <optional>
 #include <print>
 #include <signal.h>
 #include <string>
 #include <string.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <syslog.h>
@@ -28,6 +31,7 @@ constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr std::size_t PATH_MAX_GUESS = 1024;
 constexpr std::size_t OPEN_MAX_GUESS = 256;
 constexpr std::size_t MAXLINE = 4096;
+constexpr int MAXSLEEP = 128;
 
 using Sigfunc = void(int);
 using ThreadFunc = void* (*)(void*);
@@ -52,6 +56,25 @@ std::string format_message(int err_code, const std::string& fmt, Args&&... args)
 	msg += ": " + std::string(strerror(err_code));
 	return msg;
 }
+
+/**
+ * @brief Connects to a server with retries and exponential backoff.
+ * @param host Hostname or IP address of the server.
+ * @param port Port number to connect to.
+ * @param type Socket type (e.g., SOCK_STREAM).
+ * @param maxsleep Maximum sleep time between retries.
+ * @return File descriptor of the connected socket, or -1 on failure.
+ */
+int connect_to_server(const char* host, int port, int type, int maxsleep);
+
+/**
+ * @brief Initializes a server socket.
+ * @param port Port number to bind to.
+ * @param type Socket type (e.g., SOCK_STREAM).
+ * @param qlen Queue length for listen().
+ * @return File descriptor of the server socket, or -1 on failure.
+ */
+int initserver(int port, int type, int qlen);
 
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.
