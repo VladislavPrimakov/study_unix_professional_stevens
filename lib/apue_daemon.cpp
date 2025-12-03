@@ -64,7 +64,7 @@ int already_running(void) {
 		err_sys("ftruncate error");
 	}
 	std::string str_buf = std::to_string(getpid());
-	if (writen(fd, str_buf.data(), str_buf.size()) < 0) {
+	if (writen(fd, str_buf.data(), str_buf.size()) != str_buf.size()) {
 		err_quit("call write");
 	}
 	return(0);

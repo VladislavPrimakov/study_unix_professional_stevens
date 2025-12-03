@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
 		syslog(LOG_ERR, "ruptimed: can't ignore SIGCHLD: %s", strerror(errno));
 		exit(1);
 	}
-	int server_fd = initserver(4000, SOCK_STREAM, 10);
+	int server_fd = setup_server_ipv4(4000, SOCK_STREAM, 10);
 	if (server_fd < 0) {
 		syslog(LOG_ERR, "ruptimed: failed to init socket: %s", strerror(errno));
 		exit(1);

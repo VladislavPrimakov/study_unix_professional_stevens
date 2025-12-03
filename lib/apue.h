@@ -9,7 +9,6 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
-#include <liburing.h>
 #include <memory>
 #include <netdb.h>
 #include <optional>
@@ -68,13 +67,13 @@ std::string format_message(int err_code, const std::string& fmt, Args&&... args)
 int connect_to_server(const char* host, int port, int type, int maxsleep);
 
 /**
- * @brief Initializes a server socket.
+ * @brief Sets up a server socket for IPv4.
  * @param port Port number to bind to.
  * @param type Socket type (e.g., SOCK_STREAM).
- * @param qlen Queue length for listen().
- * @return File descriptor of the server socket, or -1 on failure.
+ * @param qlen Queue length for listen.
+ * @return File descriptor of the listening socket, or -1 on failure.
  */
-int initserver(int port, int type, int qlen);
+int setup_server_ipv4(int port, int type, int qlen);
 
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.

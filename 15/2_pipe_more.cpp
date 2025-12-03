@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
 		close(fd[0]);
 		while (fgets(line, MAXLINE, fp) != NULL) {
 			n = strlen(line);
-			if (writen(fd[1], line, n) < 0)
+			if (writen(fd[1], line, n) != n)
 				err_sys("call write to pipe");
 		}
 		if (ferror(fp))

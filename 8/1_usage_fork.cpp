@@ -8,7 +8,7 @@ int main(void) {
 	pid_t pid;
 	var = 88;
 	std::size_t n = buf.size();
-	if (writen(STDOUT_FILENO, buf.data(), n) < 0)
+	if (writen(STDOUT_FILENO, buf.data(), n) != n)
 		err_sys("call write");
 	std::println("before fork");
 	if ((pid = fork()) < 0) {

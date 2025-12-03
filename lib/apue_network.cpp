@@ -33,42 +33,25 @@ int connect_to_server(const char* host, int port, int type, int maxsleep) {
 	return -1;
 }
 
-int initserver(int port, int type, int qlen) {
-	struct addrinfo hint, * ailist, * aip;
-	int sockfd, err;
-	memset(&hint, 0, sizeof(hint));
-	hint.ai_flags = AI_PASSIVE;     // (0.0.0.0)
-	hint.ai_socktype = type;
-	hint.ai_canonname = NULL;
-	hint.ai_addr = NULL;
-	hint.ai_next = NULL;
-	std::string port_str = std::to_string(port);
-	if ((err = getaddrinfo(NULL, port_str.c_str(), &hint, &ailist)) != 0) {
-		syslog(LOG_ERR, "ruptimed: getaddrinfo error: %s", gai_strerror(err));
+int setup_server_ipv4(int port, int type, int qlen) {
+	int sockfd;
+	struct sockaddr_in serv_addr;
+	if ((sockfd = socket(AF_INET, type, 0)) < 0) {
 		return -1;
 	}
-	for (aip = ailist; aip != NULL; aip = aip->ai_next) {
-		if ((sockfd = socket(aip->ai_family, type, 0)) < 0) {
-			continue;
-		}
-		int opt = 1;
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-			close(sockfd);
-			continue;
-		}
-		if (bind(sockfd, aip->ai_addr, aip->ai_addrlen) < 0) {
-			close(sockfd);
-			continue;
-		}
-		if (type == SOCK_STREAM || type == SOCK_SEQPACKET) {
-			if (listen(sockfd, qlen) < 0) {
-				close(sockfd);
-				continue;
-			}
-		}
-		freeaddrinfo(ailist);
-		return sockfd;
+	int opt = 1;
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET; // IPv4
+	serv_addr.sin_port = htons(port);
+	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	if (bind(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+		close(sockfd);
+		return -1;
 	}
-	freeaddrinfo(ailist);
-	return -1;
+	if (listen(sockfd, qlen) < 0) {
+		close(sockfd);
+		return -1;
+	}
+	return sockfd;
 }

@@ -14,7 +14,7 @@ int main() {
 		}
 		else {
 			std::string msg = "invalid arguments\n";
-			if (writen(STDOUT_FILENO, msg.data(), msg.size()) < 0)
+			if (writen(STDOUT_FILENO, msg.data(), msg.size()) != msg.size())
 				err_sys("call writen");
 		}
 	}
