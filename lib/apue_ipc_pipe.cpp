@@ -15,7 +15,8 @@ void TELL_DONE_PIPE() {
 }
 
 void TELL_PARENT_PIPE() {
-	if (write(pfd2[1], "c", 1) != 1)
+	char c = 'c';
+	if (!writen(pfd2[1], &c, 1))
 		err_sys("TELL_PARENT: call write");
 }
 
@@ -28,7 +29,8 @@ void WAIT_PARENT_PIPE() {
 }
 
 void TELL_CHILD_PIPE() {
-	if (write(pfd1[1], "p", 1) != 1)
+	char c = 'p';
+	if (!writen(pfd1[1], &c, 1) != 1)
 		err_sys("TELL_CHILD: call write");
 }
 

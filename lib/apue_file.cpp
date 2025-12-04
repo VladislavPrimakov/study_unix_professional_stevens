@@ -1,6 +1,6 @@
 #include "apue.h"
 
-ssize_t readn(int fd, void* ptr, size_t n) {
+std::optional<size_t> readn(int fd, void* ptr, size_t n) {
 	size_t nleft;
 	ssize_t nread;
 	nleft = n;
@@ -8,7 +8,7 @@ ssize_t readn(int fd, void* ptr, size_t n) {
 	while (nleft > 0) {
 		if ((nread = read(fd, buf, nleft)) < 0) {
 			if (nleft == n)
-				return(-1);
+				return std::nullopt;
 			else
 				break;
 		}
@@ -21,15 +21,14 @@ ssize_t readn(int fd, void* ptr, size_t n) {
 	return(n - nleft);
 }
 
-ssize_t writen(int fd, void* ptr, size_t n) {
-	size_t nleft;
+std::optional<size_t> writen(int fd, void* ptr, size_t n) {
+	size_t nleft = n;
 	ssize_t nwritten;
-	nleft = n;
 	char* buf = static_cast<char*>(ptr);
 	while (nleft > 0) {
 		if ((nwritten = write(fd, buf, nleft)) < 0) {
 			if (nleft == n)
-				return(-1);
+				return std::nullopt;
 			else
 				break;
 		}

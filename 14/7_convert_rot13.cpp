@@ -19,7 +19,7 @@ unsigned char translate(unsigned char c) {
 }
 
 int main(int argc, char* argv[]) {
-	int ifd, ofd, i, n, nw;
+	int ifd, ofd, i, n;
 	if (argc != 3)
 		err_quit("Usage: {} infile outfile", argv[0]);
 	if ((ifd = open(argv[1], O_RDONLY)) < 0)
@@ -29,11 +29,8 @@ int main(int argc, char* argv[]) {
 	while ((n = read(ifd, buf, BSZ)) > 0) {
 		for (i = 0; i < n; i++)
 			buf[i] = translate(buf[i]);
-		if ((nw = write(ofd, buf, n)) != n) {
-			if (nw < 0)
-				err_sys("call write");
-			else
-				err_quit("written less than read ({}/{})", nw, n);
+		if ((!writen(ofd, buf, n))) {
+			err_sys("call write");
 		}
 	}
 	fsync(ofd);

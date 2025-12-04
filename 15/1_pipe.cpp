@@ -13,14 +13,14 @@ int main() {
 	else if (pid > 0) { // parent
 		close(fd[0]);
 		std::string msg = "Hello world\n";
-		if (writen(fd[1], msg.data(), msg.size()) != msg.size()) {
+		if (!writen(fd[1], msg.data(), msg.size())) {
 			err_sys("call write");
 		}
 	}
 	else { // child
 		close(fd[1]);
 		n = read(fd[0], line, MAXLINE);
-		if (write(STDOUT_FILENO, line, n) < 0) {
+		if (!writen(STDOUT_FILENO, line, n)) {
 			err_sys("call write");
 		}
 	}

@@ -12,7 +12,8 @@ int main() {
 	pid_t pid;
 	if ((fd = creat("templock", FILE_MODE)) < 0)
 		err_sys("call creat \"templock\"");
-	if (write(fd, "ab", 2) != 2)
+	char s[] = "ab";
+	if (!writen(fd, s, 2))
 		err_sys("call write to \"templock\" \"ab\"");
 	TELL_WAIT_SIGNAL();
 	if ((pid = fork()) < 0) {

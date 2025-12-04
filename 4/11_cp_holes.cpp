@@ -3,17 +3,6 @@
 #include "apue.h"
 #include <algorithm>
 
-void write_data(int fd_dest, const char* data, std::size_t size) {
-	std::size_t written = 0;
-	while (written < size) {
-		ssize_t w = write(fd_dest, data + written, size - written);
-		if (w < 0) {
-			err_sys("call write to destination file");
-		}
-		written += w;
-	}
-}
-
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		err_quit("Usage: {} <file> ... <directory>", argv[0]);
@@ -50,7 +39,9 @@ int main(int argc, char* argv[]) {
 				std::size_t non_zero_size = std::distance(buf_read.begin() + written, it_first_zero);
 				// write non-zero data
 				if (non_zero_size > 0) {
-					write_data(fd_dest, buf_read.data() + written, non_zero_size);
+					if (!writen(fd_dest, buf_read.data() + written, non_zero_size)) {
+						err_sys("call write to destination file");
+					}
 				}
 				// if first zero is at the end - break
 				if (it_first_zero == it_end) {

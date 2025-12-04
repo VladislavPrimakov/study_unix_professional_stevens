@@ -15,7 +15,7 @@ int main() {
 	if ((n = read(STDIN_FILENO, line, MAXLINE)) < 0)
 		err_sys("call read");
 	alarm(0);
-	if (write(STDOUT_FILENO, line, n) != n) {
+	if (!writen(STDOUT_FILENO, line, n)) {
 		err_quit("call write");
 	}
 	exit(0);

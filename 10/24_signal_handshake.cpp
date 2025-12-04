@@ -19,7 +19,7 @@ void inc(const int& fd, const std::string& msg) {
 		num++;
 		lseek(fd, 0, SEEK_SET);
 		s = std::to_string(num);
-		if (writen(fd, s.data(), s.size()) != s.size()) {
+		if (!writen(fd, s.data(), s.size())) {
 			err_quit("call write");
 		}
 		std::println("{} incremented to {}", msg, num);
@@ -34,8 +34,8 @@ int main() {
 	std::size_t n = 10;
 	if ((fd = open("tempfile", O_RDWR | O_CREAT | O_TRUNC, FILE_MODE)) < 0)
 		err_sys("call open");
-	int w = write(fd, "0", 1);
-	if (w != 1) {
+	char c = '0';
+	if (!writen(fd, &c, 1)) {
 		err_sys("call write");
 	}
 	pid_t pid;

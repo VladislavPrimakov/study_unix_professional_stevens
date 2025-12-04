@@ -1,6 +1,7 @@
 #ifndef APUE_H
 #define APUE_H
 
+#include <arpa/inet.h>
 #include <cerrno>
 #include <chrono>
 #include <climits>
@@ -11,6 +12,7 @@
 #include <iostream>
 #include <memory>
 #include <netdb.h>
+#include <optional>
 #include <optional>
 #include <print>
 #include <signal.h>
@@ -25,12 +27,11 @@
 #include <vector>
 
 constexpr const char* LOCKFILE = "/var/run/daemon.pid";
-constexpr mode_t LOCKMODE(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+constexpr mode_t LOCKMODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr std::size_t PATH_MAX_GUESS = 1024;
 constexpr std::size_t OPEN_MAX_GUESS = 256;
 constexpr std::size_t MAXLINE = 4096;
-constexpr int MAXSLEEP = 128;
 
 using Sigfunc = void(int);
 using ThreadFunc = void* (*)(void*);
@@ -57,41 +58,48 @@ std::string format_message(int err_code, const std::string& fmt, Args&&... args)
 }
 
 /**
- * @brief Connects to a server with retries and exponential backoff.
- * @param host Hostname or IP address of the server.
- * @param port Port number to connect to.
+ * @brief Connects to an IPv4 host by name.
+ * @param host Hostname or IP address as a string.
+ * @param port Port number to connect to. If <= 0, set free port.
  * @param type Socket type (e.g., SOCK_STREAM).
- * @param maxsleep Maximum sleep time between retries.
  * @return File descriptor of the connected socket, or -1 on failure.
  */
-int connect_to_server(const char* host, int port, int type, int maxsleep);
+int connect_ipv4_host(const char* host, int port, int type);
+
+/**
+ * @brief Connects to an IPv4 by address.
+ * @param addr Pointer to the sockaddr_in structure.
+ * @param port Port number to connect to. If <= 0, set free port.
+ * @param type Socket type (e.g., SOCK_STREAM).
+ * @return File descriptor of the connected socket, or -1 on failure.
+ */
+int connect_ipv4_addr(const struct sockaddr_in* addr, int port, int type);
 
 /**
  * @brief Sets up a server socket for IPv4.
- * @param port Port number to bind to.
+ * @param port Port number to bind to. If <= 0, set free port.
  * @param type Socket type (e.g., SOCK_STREAM).
- * @param qlen Queue length for listen.
  * @return File descriptor of the listening socket, or -1 on failure.
  */
-int setup_server_ipv4(int port, int type, int qlen);
+int setup_socket_ipv4(int port, int type);
 
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.
  * @param fd File descriptor to read from.
  * @param ptr Buffer to read into.
  * @param n Number of bytes to read.
- * @return Number of bytes read, or -1 on error.
+ * @return Optional containing number of bytes read, or std::nullopt on error.
  */
-ssize_t readn(int fd, void* ptr, size_t n);
+std::optional<size_t> readn(int fd, void* ptr, size_t n);
 
 /**
  * @brief Writes exactly nbytes from a buffer to a file descriptor.
  * @param fd File descriptor to write to.
  * @param ptr Buffer to write from.
  * @param n Number of bytes to write.
- * @return Number of bytes written, or -1 on error.
+ * @return Optional containing number of bytes written, or std::nullopt on error.
  */
-ssize_t writen(int fd, void* ptr, size_t n);
+std::optional<size_t> writen(int fd, void* ptr, size_t n);
 
 /**
  * @brief Converts a std::chrono::system_clock::time_point to a timespec structure.

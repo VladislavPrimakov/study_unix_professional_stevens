@@ -21,8 +21,8 @@ int main() {
 		close(fd2[1]);
 		while (fgets(line, MAXLINE, stdin) != NULL) {
 			n = strlen(line);
-			if (writen(fd1[1], line, n) != n)
-				err_sys("call writen to pipe");
+			if (!writen(fd1[1], line, n))
+				err_sys("call write to pipe");
 			if ((n = read(fd2[0], line, MAXLINE)) < 0)
 				err_sys("call read from pipe");
 			if (n == 0) {

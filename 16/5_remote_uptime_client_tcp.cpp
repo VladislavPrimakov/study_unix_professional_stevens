@@ -1,9 +1,9 @@
 #include "apue.h"
+#include <charconv>
 #include <liburing.h>
 
 constexpr int QUEUE_DEPTH = 8;
 constexpr size_t BUFLEN = 128;
-
 
 void download_uptime(struct io_uring* ring, int sockfd) {
 	char buf[BUFLEN];
@@ -25,21 +25,27 @@ void download_uptime(struct io_uring* ring, int sockfd) {
 		else if (n_read == 0) { // server closed connection
 			break;
 		}
-		if (writen(STDOUT_FILENO, buf, n_read) != n_read) {
+		if (!writen(STDOUT_FILENO, buf, n_read)) {
 			err_sys("write error");
 		}
 	}
 }
 
 int main(int argc, char* argv[]) {
-	if (argc != 2)
-		err_quit("usage: {} hostname", argv[0]);
+	if (argc != 3)
+		err_quit("usage: {} hostname port", argv[0]);
+	const char* port_str = argv[2];
+	int server_port = 0;
+	auto [ptr, ec] = std::from_chars(port_str, port_str + std::strlen(port_str), server_port);
+	if (ec != std::errc() || server_port <= 0 || server_port > 65535) {
+		err_quit("invalid port number: {}", port_str);
+	}
 	struct io_uring ring;
 	if (io_uring_queue_init(QUEUE_DEPTH, &ring, 0) < 0) {
 		err_sys("io_uring_queue_init failed");
 	}
-	std::println(stderr, "Connecting to {} on port 4000...", argv[1]);
-	int sockfd = connect_to_server(argv[1], 4000, SOCK_STREAM, 5);
+	std::println("Connecting to {} on port tcp/{}...", argv[1], server_port);
+	int sockfd = connect_ipv4_host(argv[1], server_port, SOCK_STREAM);
 	if (sockfd < 0) {
 		err_exit(errno, "can't connect to {}", argv[1]);
 	}

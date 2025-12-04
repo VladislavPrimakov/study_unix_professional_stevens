@@ -9,13 +9,13 @@ int main() {
 		if (sscanf(line, "%d%d", &int1, &int2) == 2) {
 			sprintf(line, "%d\n", int1 + int2);
 			n = strlen(line);
-			if (writen(STDOUT_FILENO, line, n) != n)
-				err_sys("call writen");
+			if (!writen(STDOUT_FILENO, line, n))
+				err_sys("call write");
 		}
 		else {
 			std::string msg = "invalid arguments\n";
-			if (writen(STDOUT_FILENO, msg.data(), msg.size()) != msg.size())
-				err_sys("call writen");
+			if (!writen(STDOUT_FILENO, msg.data(), msg.size()))
+				err_sys("call write");
 		}
 	}
 	exit(0);

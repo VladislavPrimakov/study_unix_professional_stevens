@@ -13,7 +13,8 @@ int main(int argc, char* argv[]) {
 	}
 	if ((fd = open(argv[1], O_RDWR | O_CREAT | O_TRUNC, FILE_MODE)) < 0)
 		err_sys("call open {}", argv[1]);
-	if (write(fd, "abcdef", 6) != 6)
+	char s[] = "abcdef";
+	if (!writen(fd, s, 6))
 		err_sys("call write");
 	if (fstat(fd, &statbuf) < 0)
 		err_sys("call fstat");
