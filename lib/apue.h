@@ -13,7 +13,6 @@
 #include <memory>
 #include <netdb.h>
 #include <optional>
-#include <optional>
 #include <print>
 #include <signal.h>
 #include <string>
