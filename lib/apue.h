@@ -20,6 +20,7 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -81,6 +82,14 @@ int connect_ipv4_addr(const struct sockaddr_in* addr, int port, int type);
  * @return File descriptor of the listening socket, or -1 on failure.
  */
 int setup_socket_ipv4(int port, int type);
+
+
+/**
+ * @brief Sets up a UNIX domain socket server and listens for connections.
+ * @param name Pathname for the UNIX domain socket.
+ * @return File descriptor of the listening socket, or negative error code on failure.
+ */
+int serv_listen(const char* name);
 
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.
