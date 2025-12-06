@@ -89,7 +89,22 @@ int setup_socket_ipv4(int port, int type);
  * @param name Pathname for the UNIX domain socket.
  * @return File descriptor of the listening socket, or negative error code on failure.
  */
-int serv_listen(const char* name);
+int serv_unix_socket_listen(const char* name);
+
+/**
+ * @brief Accepts a connection on a UNIX domain socket server.
+ * @param listenfd File descriptor of the listening socket.
+ * @param uidptr Pointer to store the UID of the connecting client (optional).
+ * @return File descriptor of the connected socket, or negative error code on failure.
+ */
+int serv_unix_socket_accept(int listenfd, uid_t* uidptr);
+
+/**
+ * @brief Connects to a UNIX domain socket server.
+ * @param name Pathname of the UNIX domain socket to connect to.
+ * @return File descriptor of the connected socket, or negative error code on failure.
+ */
+int cli_unix_socket_conn(const char* name);
 
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.
