@@ -42,7 +42,6 @@ int main(int argc, char* argv[]) {
 		size_t len = strlen(line);
 		if (len > 0 && line[len - 1] == '\n')
 			line[len - 1] = 0;
-
 		int fixed_idx = unix_socket_client_open(&ring, line, O_RDONLY);
 		if (fixed_idx < 0) {
 			std::println(stderr, "Cannot open {}: {}", line, strerror(errno));

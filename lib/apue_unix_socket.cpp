@@ -82,7 +82,16 @@ errout:
 }
 
 int unix_socket_send_fd(int sockfd, int fd) {
-
+	int domain;
+	socklen_t len = sizeof(domain);
+	if (getsockopt(sockfd, SOL_SOCKET, SO_DOMAIN, &domain, &len) == -1) {
+		err_ret("call getsockopt");
+		return -1;
+	}
+	if (domain != AF_UNIX) {
+		err_ret("SCM_RIGHTS only works on AF_UNIX sockets");
+		return -1;
+	}
 	struct msghdr msg = { 0 };
 	char buf[1] = { 0 };
 	struct iovec iov;
@@ -90,7 +99,6 @@ int unix_socket_send_fd(int sockfd, int fd) {
 	iov.iov_len = sizeof(buf);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-
 	union {
 		char buf[CMSG_SPACE(sizeof(int))];
 		struct cmsghdr align;
