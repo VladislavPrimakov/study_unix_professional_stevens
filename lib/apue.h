@@ -10,11 +10,13 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <liburing.h>
 #include <memory>
 #include <netdb.h>
 #include <optional>
 #include <print>
 #include <signal.h>
+#include <sstream>
 #include <string>
 #include <string.h>
 #include <sys/resource.h>
@@ -32,6 +34,15 @@ constexpr mode_t FILE_MODE = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 constexpr std::size_t PATH_MAX_GUESS = 1024;
 constexpr std::size_t OPEN_MAX_GUESS = 256;
 constexpr std::size_t MAXLINE = 4096;
+
+// command for client to request open file via unix domain socket
+constexpr const char UNIX_SOCKET_CL_OPEN[] = "open";
+
+// ring buffer queue depth
+constexpr std::size_t UNIX_SOCKET_QUEUE_DEPTH = 8;
+
+// maximum message size
+constexpr std::size_t UNIX_SOCKET_MAX_MSG_SIZE = 1024;
 
 using Sigfunc = void(int);
 using ThreadFunc = void* (*)(void*);
@@ -87,9 +98,10 @@ int setup_socket_ipv4(int port, int type);
 /**
  * @brief Sets up a UNIX domain socket server and listens for connections.
  * @param name Pathname for the UNIX domain socket.
+ * @param qlen Queue length for pending connections.
  * @return File descriptor of the listening socket, or negative error code on failure.
  */
-int serv_unix_socket_listen(const char* name);
+int unix_socket_serv_listen(const char* name, unsigned int qlen);
 
 /**
  * @brief Accepts a connection on a UNIX domain socket server.
@@ -97,14 +109,38 @@ int serv_unix_socket_listen(const char* name);
  * @param uidptr Pointer to store the UID of the connecting client (optional).
  * @return File descriptor of the connected socket, or negative error code on failure.
  */
-int serv_unix_socket_accept(int listenfd, uid_t* uidptr);
+int unix_socket_serv_accept(int listenfd, uid_t* uidptr);
 
 /**
  * @brief Connects to a UNIX domain socket server.
  * @param name Pathname of the UNIX domain socket to connect to.
  * @return File descriptor of the connected socket, or negative error code on failure.
  */
-int cli_unix_socket_conn(const char* name);
+int unix_socket_cli_conn(const char* name);
+
+/**
+ * @brief Receives a file descriptor over a UNIX domain socket.
+ * @param socket_fd File descriptor of the UNIX domain socket.
+ * @param uidptr Pointer to store the UID of the sending process (optional).
+ * @return Received file descriptor, or -1 on failure.
+ */
+int unix_socket_recv_fd(int socket_fd, uid_t* uidptr);
+
+/**
+ * @brief Sends a file descriptor over a UNIX domain socket.
+ * @param socket_fd File descriptor of the UNIX domain socket.
+ * @param fd_to_send File descriptor to send.
+ * @return 0 on success, -1 on failure.
+ */
+int unix_socket_send_fd(int socket_fd, int fd_to_send);
+
+/**
+ * @brief Server loop to handle requests over a UNIX domain socket.
+ * @param sockfd File descriptor of the connected UNIX domain socket.
+ */
+void unix_socket_server_loop(int sockfd);
+
+int unix_socket_client_open(struct io_uring* ring, const char* name, mode_t oflag);
 
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.
