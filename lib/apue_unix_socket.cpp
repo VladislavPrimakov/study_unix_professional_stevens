@@ -81,12 +81,9 @@ errout:
 	return rval;
 }
 
-
-
-
 struct WireHeader {
 	int code;
-	int msg_len;
+	size_t msg_len;
 };
 
 int unix_socket_check_domain(int socket_fd) {
@@ -154,14 +151,11 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr) {
 	}
 	struct msghdr msg = { 0 };
 	WireHeader header;
-	char text_buf[UNIX_SOCKET_MAX_ERR_MSG_SIZE];
-	struct iovec iov[2];
-	iov[0].iov_base = &header;
-	iov[0].iov_len = sizeof(WireHeader);
-	iov[1].iov_base = text_buf;
-	iov[1].iov_len = sizeof(text_buf);
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 2;
+	struct iovec iov;
+	iov.iov_base = &header;
+	iov.iov_len = sizeof(WireHeader);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
 	union {
 		char buf[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(sizeof(struct ucred))];
 		struct cmsghdr align;
@@ -175,18 +169,25 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr) {
 		return -1;
 	}
 	if (static_cast<size_t>(n) < sizeof(WireHeader)) {
-		err_msg("[unix_socket_recv_fd] Protocol error: message too short");
+		err_msg("[unix_socket_recv_fd] Protocol message too short");
 		return -1;
 	}
-	size_t actual_text_len = n - sizeof(WireHeader);
-	if (header.msg_len != 0) {
-		size_t safe_len = std::min(static_cast<size_t>(header.msg_len), actual_text_len);
-		std::string remote_msg(text_buf, safe_len);
-		auto status = StatusMsg(header.code, remote_msg);
-		if (!status.hasError()) {
-			err_msg(status.toString());
+	std::string remote_msg;
+	if (header.msg_len > 0) {
+		if (header.msg_len > UNIX_SOCKET_MAX_ERR_MSG_SIZE) {
+			err_msg("[unix_socket_recv_fd] Protocol message error too long");
 			return -1;
 		}
+		remote_msg.resize(header.msg_len);
+		if (!readn(socket_fd, remote_msg.data(), header.msg_len)) {
+			err_msg("[unix_socket_recv_fd] Protocol failed to read message body");
+			return -1;
+		}
+	}
+	StatusMsg status(header.code, remote_msg);
+	if (status.hasError()) {
+		err_msg(status.toString());
+		return -1;
 	}
 	int received_fd = -1;
 	for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
@@ -206,72 +207,54 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr) {
 	return received_fd;
 }
 
-void unix_socket_server_loop(int socket_fd) {
-	if (unix_socket_check_domain(socket_fd) < 0) {
+void unix_socket_process_request(int client_fd, const std::string& request_str) {
+	std::stringstream ss(request_str);
+	int op_int;
+	StatusMsg status;
+	int target_fd = -1;
+	if (!(ss >> op_int)) {
+		status.msg = "Empty request or invalid opcode format";
+		unix_socket_send_fd(client_fd, -1, &status);
 		return;
 	}
-	char buf[UNIX_SOCKET_MAX_MSG_SIZE];
-	while (true) {
-		StatusMsg status;
-		// read request from socket
-		int n = read(socket_fd, buf, sizeof(buf));
-		if (n == 0) {
-			break; // Client closed
-		}
-		if (n < 0) {
-			err_ret("[Server] read {}", socket_fd);
-			break;
-		}
-		buf[n] = 0;
-		std::stringstream ss(std::string(buf, n));
-		std::string cmd, path_str;
-		mode_t mode = 0;
-		int target_fd = -1;
-		if ((ss >> cmd >> path_str >> mode) && (cmd == UNIX_SOCKET_CL_OPEN)) {
-			target_fd = open(path_str.c_str(), mode);
+	UNIX_SOCKET_COMMAND cmd = static_cast<UNIX_SOCKET_COMMAND>(op_int);
+	switch (cmd) {
+	case UNIX_SOCKET_COMMAND::OPEN: {
+		std::string path_str;
+		int mode_val = 0;
+		if (ss >> path_str >> mode_val) {
+			target_fd = open(path_str.c_str(), static_cast<mode_t>(mode_val));
 			if (target_fd < 0) {
 				status.code = errno;
 			}
 		}
 		else {
-			status.msg = "Invalid request format or command";
+			status.msg = "Invalid arguments for OPEN (expected: path mode)";
 		}
-		if (status.hasError()) {
-			unix_socket_send_fd(socket_fd, -1, &status);
-		}
-		else {
-			unix_socket_send_fd(socket_fd, target_fd, nullptr);
-			close(target_fd);
-		}
+		break;
+	}
+	default:
+		status.msg = "Unknown command opcode: " + std::to_string(op_int);
+		break;
+	}
+	if (status.hasError()) {
+		unix_socket_send_fd(client_fd, -1, &status);
+	}
+	else {
+		unix_socket_send_fd(client_fd, target_fd, nullptr);
+	}
+	if (target_fd >= 0) {
+		close(target_fd);
 	}
 }
 
-int unix_socket_client_open(const char* name, mode_t oflag) {
-	int sockfd[2] = { -1, -1 };
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockfd) < 0)
-		err_sys("[Client] call socketpair");
-	pid_t pid = fork();
-	if (pid < 0) {
-		close(sockfd[0]); close(sockfd[1]);
-		err_sys("call fork");
-	}
-	if (pid == 0) { // Child (Server): read sockfd[1] for requests
-		close(sockfd[0]);
-		unix_socket_server_loop(sockfd[1]);
-		close(sockfd[1]);
-		exit(0);
-	}
-	// Parent (Client): send requests to sockdf[0] and wait for msg with fd 
-	close(sockfd[1]);
+int unix_socket_send_request(int sockfd, UNIX_SOCKET_COMMAND cmd, const std::string& path, int mode) {
 	std::stringstream ss;
-	ss << UNIX_SOCKET_CL_OPEN << " " << name << " " << oflag;
+	ss << static_cast<int>(cmd) << " " << path << " " << mode;
 	std::string req = ss.str();
-	if (!writen(sockfd[0], req.data(), req.length())) {
-		err_sys("[Client] call write");
+	if (!writen(sockfd, req.data(), req.length())) {
+		err_ret("[unix_socket_send_request] call write");
 		return -1;
 	}
-	int fd = unix_socket_recv_fd(sockfd[0], NULL);
-	close(sockfd[0]);
-	waitpid(pid, NULL, 0);
-	return fd;
+	return 0;
 }

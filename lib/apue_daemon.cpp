@@ -43,6 +43,8 @@ void daemonize(const char* cmd) {
 		syslog(LOG_ERR, "error fd %d %d %d", fd0, fd1, fd2);
 		exit(1);
 	}
+
+	log_to_stderr = false;
 }
 
 int already_running(void) {

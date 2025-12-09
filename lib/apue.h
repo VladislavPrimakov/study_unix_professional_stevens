@@ -35,8 +35,13 @@ constexpr std::size_t PATH_MAX_GUESS = 1024;
 constexpr std::size_t OPEN_MAX_GUESS = 256;
 constexpr std::size_t MAXLINE = 4096;
 
-// command for client to request open file via unix domain socket
-constexpr const char UNIX_SOCKET_CL_OPEN[] = "open";
+// commands via unix domain socket
+enum class UNIX_SOCKET_COMMAND {
+	OPEN,
+};
+
+// default unix domain socket path for daemon communication
+constexpr char UNIX_SOCKET_CS_OPEN[] = "/tmp/daemon.socket";
 
 // maximum message size for unix domain socket communication
 constexpr std::size_t UNIX_SOCKET_MAX_MSG_SIZE = 1024;
@@ -66,12 +71,25 @@ struct StatusMsg {
 	}
 };
 
+// flag to log messages to stderr or syslog
+inline bool log_to_stderr = true;
+
+/**
+ @brief Format error message with optional errno description.
+ @param err_code Error code (errno). If negative, no errno description is appended.
+ @param fmt Format string.
+ @param args Arguments for format string.
+ @return Formatted error message string.
+*/
 template<typename... Args>
-std::string format_message(bool addErrno, const std::string& fmt, Args&&... args) {
+std::string format_message(int err_code, const std::string& fmt, Args&&... args) {
 	try {
-		std::string msg = "Error: " + std::vformat(fmt, std::make_format_args(args...));
-		if (addErrno) {
-			msg += ": " + std::string(strerror(errno));
+		std::string msg = std::vformat(fmt, std::make_format_args(args...));
+		if (log_to_stderr) {
+			msg = "Error: " + msg;
+		}
+		if (err_code >= 0) {
+			msg += ": " + std::string(strerror(err_code));
 		}
 		return msg;
 	}
@@ -80,12 +98,111 @@ std::string format_message(bool addErrno, const std::string& fmt, Args&&... args
 	}
 }
 
-template<typename... Args>
-std::string format_message(int err_code, const std::string& fmt, Args&&... args) {
-	std::string msg = format_message(false, fmt, std::forward<Args>(args)...);
-	msg += ": " + std::string(strerror(err_code));
-	return msg;
+inline void do_error(const std::string& msg) {
+	if (log_to_stderr) {
+		std::println(std::cerr, "{}", msg);
+	}
+	else {
+		syslog(LOG_ERR, "%s", msg.c_str());
+	}
 }
+
+/**
+ @brief Print user message + given errno. Exit(1).
+*/
+template<typename... Args>
+void err_exit(int err, const std::string& fmt, Args&&... args) {
+	do_error(format_message(err, fmt, std::forward<Args>(args)...));
+	std::exit(1);
+}
+
+/**
+ @brief Print user message + given errno.
+*/
+template<typename... Args>
+void err_cont(int err, const std::string& fmt, Args&&... args) {
+	do_error(format_message(err, fmt, std::forward<Args>(args)...));
+}
+
+/**
+ @brief Print user message + errno. Exit(1).
+*/
+template<typename... Args>
+void err_sys(const std::string& fmt, Args&&... args) {
+	do_error(format_message(errno, fmt, std::forward<Args>(args)...));
+	std::exit(1);
+}
+
+/**
+ @brief Print user message + errno. Abort().
+*/
+template<typename... Args>
+void err_dump(const std::string& fmt, Args&&... args) {
+	do_error(format_message(errno, fmt, std::forward<Args>(args)...));
+	std::abort();
+}
+
+/**
+ @brief Print user message + errno.
+*/
+template<typename... Args>
+void err_ret(const std::string& fmt, Args&&... args) {
+	do_error(format_message(errno, fmt, std::forward<Args>(args)...));
+}
+
+/**
+@brief Print user message. Exit(1).
+*/
+template<typename... Args>
+void err_quit(const std::string& fmt, Args&&... args) {
+	do_error(format_message(-1, fmt, std::forward<Args>(args)...));
+	std::exit(1);
+}
+
+/**
+ @brief Print user message.
+*/
+template<typename... Args>
+void err_msg(const std::string& fmt, Args&&... args) {
+	do_error(format_message(-1, fmt, std::forward<Args>(args)...));
+}
+
+/**
+ @brief Read the time-stamp counter.
+*/
+inline uint64_t rdtsc() {
+	unsigned int lo, hi, aux;
+	__asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi), "=c"(aux));
+	return ((uint64_t)hi << 32) | lo;
+}
+
+void TELL_WAIT_SIGNAL();
+void TELL_DONE_SIGNAL();
+void TELL_PARENT_SIGNAL(pid_t);
+void TELL_CHILD_SIGNAL(pid_t);
+void WAIT_PARENT_SIGNAL();
+void WAIT_CHILD_SIGNAL();
+
+void TELL_WAIT_PIPE();
+void TELL_DONE_PIPE();
+void TELL_PARENT_PIPE();
+void TELL_CHILD_PIPE();
+void WAIT_PARENT_PIPE();
+void WAIT_CHILD_PIPE();
+
+/**
+@brief Print the signal mask of the calling process.
+@param str Message to print before the mask.
+*/
+void pr_mask(const std::string& str);
+
+/**
+ @brief Simplified signal handling function.
+ @param signo Signal number.
+ @param func Pointer to the signal handling function.
+ @return Previous signal handling function pointer.
+*/
+Sigfunc* apue_signal(int signo, Sigfunc* func);
 
 /**
  * @brief Connects to an IPv4 host by name.
@@ -155,13 +272,24 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr);
 int unix_socket_send_fd(int socket_fd, int fd_to_send, struct StatusMsg* status = nullptr);
 
 /**
- * @brief Server loop to handle requests over a UNIX domain socket.
- * @param sockfd File descriptor of the connected UNIX domain socket.
+ * @brief Processes a request received over a UNIX domain socket.
+ * @param client_fd File descriptor of the connected client socket.
+ * @param request_str Request string received from the client.
  */
-void unix_socket_server_loop(int sockfd);
+void unix_socket_process_request(int client_fd, const std::string& request_str);
 
 /**
- * @brief Checks if the given socket file descriptor is a UNIX domain socket.
+ * @brief Sends a request to a UNIX domain socket server.
+ * @param sockfd File descriptor of the connected UNIX domain socket.
+ * @param cmd Command to send.
+ * @param path Path argument for the command.
+ * @param mode Mode argument for the command (if applicable).
+ * @return 0 on success, -1 on failure.
+ */
+int unix_socket_send_request(int sockfd, UNIX_SOCKET_COMMAND cmd, const std::string& path, int mode);
+
+/**
+ * @brief Checks if the given socket is a UNIX domain socket.
  * @param socket_fd File descriptor of the socket to check.
  * @return 0 if it is a UNIX domain socket, -1 otherwise.
  */
@@ -370,103 +498,5 @@ void clr_fl(int fd, int flags);
  @param status Status value returned by wait or waitpid.
 */
 void pr_exit(int status);
-
-/**
- @brief Print user message + given errno. Exit(1).
-*/
-template<typename... Args>
-void err_exit(int err, const std::string& fmt, Args&&... args) {
-	std::println(std::cerr, "{}", format_message(err, fmt, std::forward<Args>(args)...));
-	std::exit(1);
-}
-
-/**
- @brief Print user message + given errno.
-*/
-template<typename... Args>
-void err_cont(int err, const std::string& fmt, Args&&... args) {
-	std::println(std::cerr, "{}", format_message(err, fmt, std::forward<Args>(args)...));
-}
-
-/**
- @brief Print user message + errno. Exit(1).
-*/
-template<typename... Args>
-void err_sys(const std::string& fmt, Args&&... args) {
-	std::println(std::cerr, "{}", format_message(true, fmt, std::forward<Args>(args)...));
-	std::exit(1);
-}
-
-/**
- @brief Print user message + errno. Abort().
-*/
-template<typename... Args>
-void err_dump(const std::string& fmt, Args&&... args) {
-	std::println(std::cerr, "{}", format_message(true, fmt, std::forward<Args>(args)...));
-	std::abort();
-}
-
-/**
- @brief Print user message + errno.
-*/
-template<typename... Args>
-void err_ret(const std::string& fmt, Args&&... args) {
-	std::println(std::cerr, "{}", format_message(true, fmt, std::forward<Args>(args)...));
-}
-
-/**
-@brief Print user message. Exit(1).
-*/
-template<typename... Args>
-void err_quit(const std::string& fmt, Args&&... args) {
-	std::println(std::cerr, "{}", format_message(false, fmt, std::forward<Args>(args)...));
-	std::exit(1);
-}
-
-/**
- @brief Print user message.
-*/
-template<typename... Args>
-void err_msg(const std::string& fmt, Args&&... args) {
-	std::println(std::cerr, "{}", format_message(false, fmt, std::forward<Args>(args)...));
-	return;
-}
-
-/**
- @brief Read the time-stamp counter.
-*/
-inline uint64_t rdtsc() {
-	unsigned int lo, hi, aux;
-	__asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi), "=c"(aux));
-	return ((uint64_t)hi << 32) | lo;
-}
-
-void TELL_WAIT_SIGNAL();
-void TELL_DONE_SIGNAL();
-void TELL_PARENT_SIGNAL(pid_t);
-void TELL_CHILD_SIGNAL(pid_t);
-void WAIT_PARENT_SIGNAL();
-void WAIT_CHILD_SIGNAL();
-
-void TELL_WAIT_PIPE();
-void TELL_DONE_PIPE();
-void TELL_PARENT_PIPE();
-void TELL_CHILD_PIPE();
-void WAIT_PARENT_PIPE();
-void WAIT_CHILD_PIPE();
-
-/**
-@brief Print the signal mask of the calling process.
-@param str Message to print before the mask.
-*/
-void pr_mask(const std::string& str);
-
-/**
- @brief Simplified signal handling function.
- @param signo Signal number.
- @param func Pointer to the signal handling function.
- @return Previous signal handling function pointer.
-*/
-Sigfunc* apue_signal(int signo, Sigfunc* func);
 
 #endif // !APUE_H
