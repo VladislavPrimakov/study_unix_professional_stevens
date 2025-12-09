@@ -38,14 +38,20 @@ constexpr std::size_t MAXLINE = 4096;
 // command for client to request open file via unix domain socket
 constexpr const char UNIX_SOCKET_CL_OPEN[] = "open";
 
-// ring buffer queue depth
-constexpr std::size_t UNIX_SOCKET_QUEUE_DEPTH = 8;
-
-// maximum message size
+// maximum message size for unix domain socket communication
 constexpr std::size_t UNIX_SOCKET_MAX_MSG_SIZE = 1024;
+
+// maximum error message size for unix domain socket communication
+constexpr std::size_t UNIX_SOCKET_MAX_ERR_MSG_SIZE = 1024;
+
 
 using Sigfunc = void(int);
 using ThreadFunc = void* (*)(void*);
+
+struct StatusMsg {
+	int code;           						// 0 = OK, else = error code
+	char msg[UNIX_SOCKET_MAX_ERR_MSG_SIZE];		// Error msg (optional)
+};
 
 template<typename... Args>
 std::string format_message(bool addErrno, const std::string& fmt, Args&&... args) {
@@ -130,9 +136,10 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr);
  * @brief Sends a file descriptor over a UNIX domain socket.
  * @param socket_fd File descriptor of the UNIX domain socket.
  * @param fd_to_send File descriptor to send.
+ * @param status Optional pointer to StatusMsg to receive status information.
  * @return 0 on success, -1 on failure.
  */
-int unix_socket_send_fd(int socket_fd, int fd_to_send);
+int unix_socket_send_fd(int socket_fd, int fd_to_send, struct StatusMsg* status = nullptr);
 
 /**
  * @brief Server loop to handle requests over a UNIX domain socket.
@@ -140,7 +147,20 @@ int unix_socket_send_fd(int socket_fd, int fd_to_send);
  */
 void unix_socket_server_loop(int sockfd);
 
-int unix_socket_client_open(struct io_uring* ring, const char* name, mode_t oflag);
+/**
+ * @brief Checks if the given socket file descriptor is a UNIX domain socket.
+ * @param socket_fd File descriptor of the socket to check.
+ * @return 0 if it is a UNIX domain socket, -1 otherwise.
+ */
+int unix_socket_check_domain(int socket_fd);
+
+/**
+ * @brief Client function to request opening a file via UNIX domain socket.
+ * @param name Pathname of the UNIX domain socket server.
+ * @param oflag Flags for opening the file (e.g., O_RDONLY).
+ * @return File descriptor of the opened file, or negative error code on failure.
+ */
+int unix_socket_client_open(const char* name, mode_t oflag);
 
 /**
  * @brief Reads exactly nbytes from a file descriptor into a buffer.

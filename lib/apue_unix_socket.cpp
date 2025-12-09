@@ -81,59 +81,73 @@ errout:
 	return rval;
 }
 
-int unix_socket_send_fd(int sockfd, int fd) {
+int unix_socket_check_domain(int socket_fd) {
 	int domain;
 	socklen_t len = sizeof(domain);
-	if (getsockopt(sockfd, SOL_SOCKET, SO_DOMAIN, &domain, &len) == -1) {
-		err_ret("call getsockopt");
+	if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &domain, &len) == -1) {
+		err_ret("[unix_socket_check_domain] call getsockopt");
 		return -1;
 	}
 	if (domain != AF_UNIX) {
-		err_ret("SCM_RIGHTS only works on AF_UNIX sockets");
+		return -1;
+	}
+	return 0;
+}
+
+int unix_socket_send_fd(int socket_fd, int fd_to_send, struct StatusMsg* status) {
+	if (unix_socket_check_domain(socket_fd) < 0) {
 		return -1;
 	}
 	struct msghdr msg = { 0 };
-	char buf[1] = { 0 };
 	struct iovec iov;
-	iov.iov_base = buf;
-	iov.iov_len = sizeof(buf);
+	StatusMsg default_status = { 0 };
+	if (status != nullptr) {
+		iov.iov_base = status;
+	}
+	else {
+		iov.iov_base = &default_status;
+	}
+	iov.iov_len = sizeof(StatusMsg);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 	union {
 		char buf[CMSG_SPACE(sizeof(int))];
 		struct cmsghdr align;
 	} u;
-	memset(&u, 0, sizeof(u));
-	msg.msg_control = u.buf;
-	msg.msg_controllen = sizeof(u.buf);
-
-	struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
-	if (!cmsg) {
-		err_ret("CMSG_FIRSTHDR returned NULL");
-		return -1;
+	if (fd_to_send >= 0) {
+		std::memset(&u, 0, sizeof(u));
+		msg.msg_control = u.buf;
+		msg.msg_controllen = sizeof(u.buf);
+		struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+		*reinterpret_cast<int*>(CMSG_DATA(cmsg)) = fd_to_send;
 	}
-	cmsg->cmsg_level = SOL_SOCKET;
-	cmsg->cmsg_type = SCM_RIGHTS;
-	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-	*reinterpret_cast<int*>(CMSG_DATA(cmsg)) = fd;
-
-	if (sendmsg(sockfd, &msg, 0) < 0) {
-		err_ret("call sendmsg");
+	else {
+		msg.msg_control = nullptr;
+		msg.msg_controllen = 0;
+	}
+	if (sendmsg(socket_fd, &msg, 0) < 0) {
+		err_ret("[unix_socket_send_fd] call sendmsg");
 		return -1;
 	}
 	return 0;
 }
 
 int unix_socket_recv_fd(int socket_fd, uid_t* uidptr) {
+	if (unix_socket_check_domain(socket_fd) < 0) {
+		return -1;
+	}
 	int on = 1;
 	if (setsockopt(socket_fd, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) < 0) {
-		err_ret("call setsockopt");
+		err_ret("[unix_socket_recv_fd] call setsockopt(SO_PASSCRED)");
 	}
 	struct msghdr msg = { 0 };
-	char buf[1];
+	StatusMsg status;
 	struct iovec iov;
-	iov.iov_base = buf;
-	iov.iov_len = sizeof(buf);
+	iov.iov_base = &status;
+	iov.iov_len = sizeof(status);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 	union {
@@ -143,116 +157,102 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr) {
 	memset(&u, 0, sizeof(u));
 	msg.msg_control = u.buf;
 	msg.msg_controllen = sizeof(u.buf);
-	if (recvmsg(socket_fd, &msg, 0) < 0) {
-		err_ret("call recvmsg");
-		return(-1);
+	ssize_t n = recvmsg(socket_fd, &msg, 0);
+	if (n < 0) {
+		err_ret("[unix_socket_recv_fd] call recvmsg");
+		return -1;
+	}
+	size_t err_msg_len = strlen(status.msg);
+	if (status.code != 0 || err_msg_len > 0) {
+		std::string s = std::string(status.msg, err_msg_len);
+		s += (status.code != 0 ? " " + std::string(strerror(status.code)) : "");
+		err_msg(s);
+		return -1;
 	}
 	int received_fd = -1;
-	struct ucred creds = { 0, 0, 0 };
 	for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
 			received_fd = *reinterpret_cast<int*>(CMSG_DATA(cmsg));
 		}
 		if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_CREDENTIALS) {
-			creds = *reinterpret_cast<struct ucred*>(CMSG_DATA(cmsg));
+			struct ucred creds = *reinterpret_cast<struct ucred*>(CMSG_DATA(cmsg));
 			if (uidptr != NULL) {
 				*uidptr = creds.uid;
 			}
 		}
 	}
 	if (received_fd == -1) {
-		err_msg("no fd received via socket");
-		return(-1);
+		err_ret("[unix_socket_recv_fd] Protocol OK but no FD received");
 	}
 	return received_fd;
 }
 
-void unix_socket_server_loop(int sockfd) {
-	struct io_uring ring;
-	if (io_uring_queue_init(UNIX_SOCKET_QUEUE_DEPTH, &ring, 0) < 0) {
-		err_sys("[Server] call io_uring_queue_init");
+void unix_socket_server_loop(int socket_fd) {
+	if (unix_socket_check_domain(socket_fd) < 0) {
+		return;
 	}
-	// get client ring fd
-	int client_ring_fd = unix_socket_recv_fd(sockfd, NULL);
-	if (client_ring_fd < 0)
-		err_quit("[Server] failed to recv client ring");
-	// register client ring fd at index 0
-	int files[] = { client_ring_fd };
-	if (io_uring_register_files(&ring, files, 1) < 0)
-		err_sys("[Server] call io_uring_register_files");
 	char buf[UNIX_SOCKET_MAX_MSG_SIZE];
 	while (true) {
+		StatusMsg status = { 0 };
 		// read request from socket
-		int n = read(sockfd, buf, sizeof(buf));
-		if (n <= 0)
+		int n = read(socket_fd, buf, sizeof(buf));
+		if (n == 0) {
 			break; // Client closed
+		}
+		if (n < 0) {
+			err_ret("[Server] read {}", socket_fd);
+			break;
+		}
+		buf[n] = 0;
 		std::stringstream ss(std::string(buf, n));
 		std::string cmd, path_str;
-		int mode = 0;
+		mode_t mode = 0;
 		int target_fd = -1;
 		if ((ss >> cmd >> path_str >> mode) && (cmd == UNIX_SOCKET_CL_OPEN)) {
 			target_fd = open(path_str.c_str(), mode);
-		}
-		struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
-		if (target_fd < 0) {
-			// send error back to client (data = -errno)
-			io_uring_prep_msg_ring(sqe, 0, (errno > 0 ? -errno : -1), 0, 0);
+			if (target_fd < 0) {
+				status.code = errno;
+			}
 		}
 		else {
-			// send file descriptor back to client at index 1
-			io_uring_prep_msg_ring_fd(sqe, 0, target_fd, 1, 0, 0);
+			strncpy(status.msg, "Invalid request format or command\0", sizeof(status.msg));
 		}
-		io_uring_sqe_set_flags(sqe, IOSQE_FIXED_FILE);
-		io_uring_submit(&ring);
-		struct io_uring_cqe* cqe;
-		io_uring_wait_cqe(&ring, &cqe);
-		if (cqe->res < 0)
-			err_cont(-cqe->res, "[Server] Failed to send fd to ring");
-		io_uring_cqe_seen(&ring, cqe);
-		if (target_fd >= 0)
+		if (status.code != 0 || strlen(status.msg) > 0) {
+			unix_socket_send_fd(socket_fd, -1, &status);
+		}
+		else {
+			unix_socket_send_fd(socket_fd, target_fd, nullptr);
 			close(target_fd);
+		}
 	}
-	io_uring_queue_exit(&ring);
 }
 
-int unix_socket_client_open(struct io_uring* ring, const char* name, mode_t oflag) {
-	static int sockfd[2] = { -1, -1 };
-	static bool ring_inited = false;
-	if (!ring_inited) {
-		if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockfd) < 0)
-			err_sys("call socketpair");
-		pid_t pid = fork();
-		if (pid < 0)
-			err_sys("fork");
-		if (pid == 0) { // Child (Server)
-			close(sockfd[0]);
-			unix_socket_server_loop(sockfd[1]);
-			exit(0);
-		}
-		// Parent (Client)
-		close(sockfd[1]);
-		int files[2] = { -1, -1 };
-		if (io_uring_register_files(ring, files, 2) < 0)
-			err_sys("call io_uring_register_files");
-		if (unix_socket_send_fd(sockfd[0], ring->ring_fd) < 0)
-			return -1;
-		ring_inited = true;
+int unix_socket_client_open(const char* name, mode_t oflag) {
+	int sockfd[2] = { -1, -1 };
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockfd) < 0)
+		err_sys("[Client] call socketpair");
+	pid_t pid = fork();
+	if (pid < 0) {
+		close(sockfd[0]); close(sockfd[1]);
+		err_sys("call fork");
 	}
-	// send open request to server
+	if (pid == 0) { // Child (Server): read sockfd[1] for requests
+		close(sockfd[0]);
+		unix_socket_server_loop(sockfd[1]);
+		close(sockfd[1]);
+		exit(0);
+	}
+	// Parent (Client): send requests to sockdf[0] and wait for msg with fd 
+	close(sockfd[1]);
 	std::stringstream ss;
 	ss << UNIX_SOCKET_CL_OPEN << " " << name << " " << oflag;
 	std::string req = ss.str();
-	if (write(sockfd[0], req.c_str(), req.length()) < 0)
-		err_sys("call write");
-	// wait for request from server
-	struct io_uring_cqe* cqe;
-	io_uring_wait_cqe(ring, &cqe);
-	int res = cqe->res;
-	io_uring_cqe_seen(ring, cqe);
-	if (res < 0) {
-		errno = -res;
+	if (!writen(sockfd[0], req.data(), req.length())) {
+		err_sys("[Client] call write");
 		return -1;
 	}
-	// if res >= 0, return index received fd in fixed table
-	return 1;
+	int fd = unix_socket_recv_fd(sockfd[0], NULL);
+	close(sockfd[0]);
+	waitpid(pid, NULL, 0);
+	return fd;
 }
