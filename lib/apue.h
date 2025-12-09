@@ -44,13 +44,26 @@ constexpr std::size_t UNIX_SOCKET_MAX_MSG_SIZE = 1024;
 // maximum error message size for unix domain socket communication
 constexpr std::size_t UNIX_SOCKET_MAX_ERR_MSG_SIZE = 1024;
 
-
 using Sigfunc = void(int);
 using ThreadFunc = void* (*)(void*);
 
 struct StatusMsg {
-	int code;           						// 0 = OK, else = error code
-	char msg[UNIX_SOCKET_MAX_ERR_MSG_SIZE];		// Error msg (optional)
+	int code;
+	std::string msg;
+	StatusMsg() : code(0), msg("") {}
+	StatusMsg(int c, const std::string& m) : code(c), msg(m) {}
+	bool hasError() const {
+		return code != 0 || !msg.empty();
+	}
+	std::string toString() const {
+		std::stringstream ss;
+		if (!msg.empty()) ss << msg;
+		if (code != 0) {
+			if (!msg.empty()) ss << ": ";
+			ss << strerror(code);
+		}
+		return ss.str();
+	}
 };
 
 template<typename... Args>

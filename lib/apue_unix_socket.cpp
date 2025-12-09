@@ -81,6 +81,14 @@ errout:
 	return rval;
 }
 
+
+
+
+struct WireHeader {
+	int code;
+	int msg_len;
+};
+
 int unix_socket_check_domain(int socket_fd) {
 	int domain;
 	socklen_t len = sizeof(domain);
@@ -99,22 +107,23 @@ int unix_socket_send_fd(int socket_fd, int fd_to_send, struct StatusMsg* status)
 		return -1;
 	}
 	struct msghdr msg = { 0 };
-	struct iovec iov;
-	StatusMsg default_status = { 0 };
-	if (status != nullptr) {
-		iov.iov_base = status;
-	}
-	else {
-		iov.iov_base = &default_status;
-	}
-	iov.iov_len = sizeof(StatusMsg);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
+	StatusMsg default_status;
+	StatusMsg* p_status = (status != nullptr) ? status : &default_status;
+	WireHeader header;
+	header.code = p_status->code;
+	header.msg_len = static_cast<int>(std::min(p_status->msg.size(), UNIX_SOCKET_MAX_ERR_MSG_SIZE));
+	struct iovec iov[2];
+	iov[0].iov_base = &header;
+	iov[0].iov_len = sizeof(WireHeader);
+	iov[1].iov_base = const_cast<char*>(p_status->msg.data());
+	iov[1].iov_len = header.msg_len;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 2;
 	union {
 		char buf[CMSG_SPACE(sizeof(int))];
 		struct cmsghdr align;
 	} u;
-	if (fd_to_send >= 0) {
+	if (fd_to_send >= 0 && !p_status->hasError()) {
 		std::memset(&u, 0, sizeof(u));
 		msg.msg_control = u.buf;
 		msg.msg_controllen = sizeof(u.buf);
@@ -144,12 +153,15 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr) {
 		err_ret("[unix_socket_recv_fd] call setsockopt(SO_PASSCRED)");
 	}
 	struct msghdr msg = { 0 };
-	StatusMsg status;
-	struct iovec iov;
-	iov.iov_base = &status;
-	iov.iov_len = sizeof(status);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
+	WireHeader header;
+	char text_buf[UNIX_SOCKET_MAX_ERR_MSG_SIZE];
+	struct iovec iov[2];
+	iov[0].iov_base = &header;
+	iov[0].iov_len = sizeof(WireHeader);
+	iov[1].iov_base = text_buf;
+	iov[1].iov_len = sizeof(text_buf);
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 2;
 	union {
 		char buf[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(sizeof(struct ucred))];
 		struct cmsghdr align;
@@ -162,12 +174,19 @@ int unix_socket_recv_fd(int socket_fd, uid_t* uidptr) {
 		err_ret("[unix_socket_recv_fd] call recvmsg");
 		return -1;
 	}
-	size_t err_msg_len = strlen(status.msg);
-	if (status.code != 0 || err_msg_len > 0) {
-		std::string s = std::string(status.msg, err_msg_len);
-		s += (status.code != 0 ? " " + std::string(strerror(status.code)) : "");
-		err_msg(s);
+	if (static_cast<size_t>(n) < sizeof(WireHeader)) {
+		err_msg("[unix_socket_recv_fd] Protocol error: message too short");
 		return -1;
+	}
+	size_t actual_text_len = n - sizeof(WireHeader);
+	if (header.msg_len != 0) {
+		size_t safe_len = std::min(static_cast<size_t>(header.msg_len), actual_text_len);
+		std::string remote_msg(text_buf, safe_len);
+		auto status = StatusMsg(header.code, remote_msg);
+		if (!status.hasError()) {
+			err_msg(status.toString());
+			return -1;
+		}
 	}
 	int received_fd = -1;
 	for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
@@ -193,7 +212,7 @@ void unix_socket_server_loop(int socket_fd) {
 	}
 	char buf[UNIX_SOCKET_MAX_MSG_SIZE];
 	while (true) {
-		StatusMsg status = { 0 };
+		StatusMsg status;
 		// read request from socket
 		int n = read(socket_fd, buf, sizeof(buf));
 		if (n == 0) {
@@ -215,9 +234,9 @@ void unix_socket_server_loop(int socket_fd) {
 			}
 		}
 		else {
-			strncpy(status.msg, "Invalid request format or command\0", sizeof(status.msg));
+			status.msg = "Invalid request format or command";
 		}
-		if (status.code != 0 || strlen(status.msg) > 0) {
+		if (status.hasError()) {
 			unix_socket_send_fd(socket_fd, -1, &status);
 		}
 		else {
